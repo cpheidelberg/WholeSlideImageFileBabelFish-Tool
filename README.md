@@ -170,5 +170,5 @@ If you use WSI-BabelFish in your research, please cite the following paper:
 ```
 
 ---
-**Author:** Maximilian Legnar and Cleo-Aron Weis <br>
-**Contact:** [marlen.runz@uni-heidelberg.de](mailto:marlen.runz@uni-heidelberg.de)
+**Authors of this Repo:** Cleo-Aron Weis and Maximilian Legnar <br>
+**Contact:** [cleo-aron.weis@uni-heidelberg.de](mailto:cleo-aron.weis@uni-heidelberg.de)
