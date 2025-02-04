@@ -1,0 +1,9 @@
+{
+  "folder_to_watch": "C:\\Scans\\Metadata-Extraction",
+  "patterns": ["*.ndpi"],
+  "ignore_patterns": [],
+  "ignore_directories": true,
+  "target_folder": "C:\\Scans\\PACS-import",
+  "debug_mode": true,
+  "plausibility_check": true
+}
