@@ -1,11 +1,10 @@
-**!!! CODE COMING SOON !!!!**
 
-This repo and the related paper is still under review and not yet ready for publication!
-This repo will be freely available after the publication of the paper, which is expected to happen soon.
-
-**!!! CODE COMING SOON !!!!**
 
 #  WholeSlideImageFileBabelFish-Tool
+
+This python project was created as part of the article \
+_"Presenting the framework of the whole slide image file Babel fish: An OCR-based file labeling tool"._ \
+The paper can be found here: https://doi.org/10.1016/j.jpi.2024.100402 
 
 WSI-BabelFish is a tool to extract meta information
 like case number, year, slide number, block number etc. 
@@ -140,3 +139,36 @@ Then install pytesseract into your environment using ``python -m pip install pyt
 **On Linux:**
 
 Feel free to edit this chapter if you have some experience with it!
+
+## Contribute
+Contributions are very welcome! Here's how to get involved:
+
+1. Clone or fork the repository.
+2. Make your changes or improvements.
+3. Create a pull request.
+4. If you find any bugs or have suggestions, please log them here as well.
+
+(Include additional details on development environment setup, coding style, testing, and issue reporting as needed.)
+
+## How to cite
+
+If you use WSI-BabelFish in your research, please cite the following paper:
+
+```
+@article{ENGLERT2024100402,
+    title = {Presenting the framework of the whole slide image file Babel fish: An OCR-based file labeling tool},
+    journal = {Journal of Pathology Informatics},
+    volume = {15},
+    pages = {100402},
+    year = {2024},
+    issn = {2153-3539},
+    doi = {https://doi.org/10.1016/j.jpi.2024.100402},
+    url = {https://www.sciencedirect.com/science/article/pii/S2153353924000415},
+    author = {Nils Englert and Constantin Schwab and Maximilian Legnar and Cleo-Aron Weis},
+    keywords = {DICOM, Digital pathology, Optical character recognition, Automatization}
+}
+```
+
+---
+**Author:** Maximilian Legnar and Cleo-Aron Weis <br>
+**Contact:** [marlen.runz@uni-heidelberg.de](mailto:marlen.runz@uni-heidelberg.de)
