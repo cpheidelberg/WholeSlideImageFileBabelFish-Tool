@@ -87,6 +87,7 @@ python -m pip install pandas
 python -m pip install rapidfuzz
 python -m pip install thefuzz
 python -m pip install tqdm
+python -m pip install icecream
 
 ```
 
@@ -114,10 +115,10 @@ brew install libdmtx
 ```  
 on windows, get the `libdmtx.dll` manually from the web. We've found it [here](https://github.com/NaturalHistoryMuseum/pylibdmtx/issues/64).
 
-Then, in get_name.py, import it like this in our python scripts:
+Then, in `tools_MetadataExtraction/HitchhikersGuide.py`, import it like this in our python scripts:
 
 ```
-PYLIBDMTX_PATH = r'C:\Users\...\.conda/envs\slide-processing\Lib\site-packages\pylibdmtx\libdmtx_64bit'
+PYLIBDMTX_PATH = r'C:/Users/.../.conda/envs\.../Lib/site-packages/pylibdmtx/libdmtx-64bit.dll'
    with os.add_dll_directory(PYLIBDMTX_PATH):
        from pylibdmtx.pylibdmtx import decode
 ```
@@ -132,7 +133,7 @@ https://tesseract-ocr.github.io/tessdoc/Installation.html
 
 Add `\path\where\installed\Tesseract-OCR` to path environment variable
 
-Check in terminal if command "tesseract" works.
+Check in terminal if command `tesseract` works.
 
 Then install pytesseract into your environment using ``python -m pip install pytesseract``
 
