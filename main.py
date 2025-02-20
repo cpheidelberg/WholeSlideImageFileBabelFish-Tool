@@ -31,9 +31,11 @@ if save_print_to_log_file:
     log = open(lof_file, "a")
     sys.stdout = log
 
+only_extract_meta_data = False
+if "only_extract_meta_data" in config:
+    only_extract_meta_data = config["only_extract_meta_data"]
 
-
-##### functions: #####
+    ##### functions: #####
 def make_hyperlink(value, appeareance=None):
     if appeareance is None:
         appeareance = value
@@ -285,7 +287,7 @@ if __name__ == '__main__':
             for i, slide in enumerate(new_slides):
                 print(f"\n{i+1}/{len(new_slides)})")
                 try:
-                    on_new_slide_created(slide)
+                    on_new_slide_created(slide, move_slide=not only_extract_meta_data)
                 except Exception as e:
                     print("ERROR during main-loop!!!")
                     print(traceback.format_exc())
