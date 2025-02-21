@@ -20,6 +20,7 @@ def is_valid_case_id(case_id: str) -> bool:
                 if case_year <= int(datetime.datetime.now().year):  # the year should not be in the future
                     return True
     return False
+
 def get_slide_meta_data(path_to_slide, slide_reader: HitchhickerGuide, case_id_length=6):
     '''
     returns a dict which contains all the meta info about the slide using qr-codes and OCR

@@ -45,12 +45,12 @@ WSI-BabelFish will watch the folder `folder_to_watch` (can be set in `slides_met
 new files which match pattern `patterns` have been uploaded to `folder_to_watch`.
 
 WSI-BabelFish will then extract the meta-data of the new imported slide and save it as json at 
-`target_folder/slide-file.ndpi.json`. 
+`target_folder/<slide-file>.ndpi.import`. 
 
-After the metadata extraction is done, WSI-BabelFish moves the slide to `target_folder/slide-file.ndpi`
+After the metadata extraction is done, WSI-BabelFish moves the slide to `target_folder/slide-file.ndpi` if, `only_extract_meta_data` is set to `False` in the config file (`slides_meta_data_extraction.json`).
 
 WSI-BabelFish needs to be executed frequently using a task scheduler.
-For this, one need to set up a scheduled task so that `/path/to/this/repo/main.py` gets executed each x minute.
+For this, one need to set up a scheduled task so that `/path/to/this/repo/main.py` gets executed each x minute. For this, see the next chapter(s):
 
 #### windows:
 We had some trouble to make WSI-BabelFish work together with the windows task scheduler. This was our solution:
@@ -64,6 +64,17 @@ We had some trouble to make WSI-BabelFish work together with the windows task sc
 #### linux:
 On linux one can use crontab to schedule the execution of `/path/to/this/repo/main.py`. 
 Feel free to edit this chapter if you have some experience with it!
+
+#### How to adapt the OCR tools:
+
+Unfortunately, the OCR tools are not perfect and need to be adapted to the specific use case. 
+
+For this, one can edit the `tools_MetadataExtraction/HitchhikersGuide.py` code.
+Moreover, the function `get_slide_meta_data` in `tools_MetadataExtraction/extract_meta_data.py` can be adapted to change how the metadata dictionary should be built.
+
+Implement/adjust the function `is_valid_slide_id` and or `is_valid_case_id` in `tools_MetadataExtraction/extract_meta_data.py` to adjust how the plausibility check should be done on your extracted metadata.
+
+
 
 ## Installation
 
@@ -140,6 +151,10 @@ Then install pytesseract into your environment using ``python -m pip install pyt
 **On Linux:**
 
 Feel free to edit this chapter if you have some experience with it!
+
+## Usage
+
+### 
 
 ## Contribute
 Contributions are very welcome! Here's how to get involved:

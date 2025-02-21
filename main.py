@@ -40,6 +40,7 @@ def make_hyperlink(value, appeareance=None):
     if appeareance is None:
         appeareance = value
     return '=HYPERLINK("{}","{}")'.format(value, appeareance)
+
 def on_new_slide_created(path_to_slide=None, save_meta_in_dicom_header=False, move_slide=True):
     if path_to_slide:
         path_to_slide = path_to_slide.replace('\\', '/')
