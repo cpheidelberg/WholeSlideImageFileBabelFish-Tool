@@ -68,13 +68,16 @@ Feel free to edit this chapter if you have some experience with it!
 #### How to configure ROI-configurations:
 WSI Babelfish needs to know which information (staining-letters, block-num, etc...) is located in which region on the label of the slide.
 
-For this, WSI-BabelFish can load ROI-configuration files. (ROI = Region of Interest).
-
+For this, WSI-BabelFish can load ROI-configuration files. (ROI = Region of Interest).\
 To create a new ROI-configuration file, please follow these steps:
 
 1. Download and install [ImageJ](https://imagej.net/ij/).
-2. Get a macro-image (png or jpg) of one of your slide-files. To extract a macro-image from a WSI, you can use the `extract_macro_image.py` script in `./tools_ROIconfig`.
-3. Open the macro-image in ImageJ.
+2. Get a macro-image (png or jpg) of one of your slide-files. To extract one or multiple macro-images from a WSI, 
+you can use: 
+````
+python tools_ROIconfig/extract_macro_images.py --in_folder <path_to_folder_containing_wsis> --file_type <e.g. .ndpi or .svs etc>
+````
+4. Open the macro-image in ImageJ.
 4. Use the `Rectangle`-Tool to draw ROI's. Add each rectangle to a ROI-set using right-mouse click -> `add to ROI-Manager` and name each ROI accordingly to what information is located in this region.
 5. In the ROI manager, select all ROIs and export them as one RoiSet zip file.
 
