@@ -37,7 +37,7 @@ Successful extracted data will be collected in a table at `folder_to_watch/table
 
 Errors and warnings will be logged in `folder_to_watch/.logs/` (this is a hidden directory!).
 
-## How to configure WSI-BabelFish file management
+## How to configure WSI-BabelFish
 
 Can be configured by editing the file `tools_FileObserving/slides_meta_data_extraction.json`:
 
@@ -64,6 +64,20 @@ We had some trouble to make WSI-BabelFish work together with the windows task sc
 #### linux:
 On linux one can use crontab to schedule the execution of `/path/to/this/repo/main.py`. 
 Feel free to edit this chapter if you have some experience with it!
+
+#### How to configure ROI-configurations:
+WSI Babelfish needs to know which information (staining-letters, block-num, etc...) is located in which region on the label of the slide.
+
+For this, WSI-BabelFish can load ROI-configuration files. (ROI = Region of Interest).
+
+To create a new ROI-configuration file, one can use the scripts located in `./tools_ROIconfig` and some open source tools:
+
+1. Download and install [ImageJ](https://imagej.net/ij/).
+2. Get a macro-image (png oder jpg) of one of your slide-files. To extract a macro-image from a WSI, you can use the `extract_macro_image.py` script in `./tools_ROIconfig`.
+3. Open the macro-image in ImageJ.
+4. Use the `Rectangle`-Tool to draw ROI's. Add each rectangle to a ROI-set using right-mouse click -> `add to ROI-Manager` and name each ROI accordingly to what information is located in this region.
+5. In the ROI manager, select all ROIs and export them as a RoiSet zip file and copy it into the `./tools_ROIconfig` directory.
+6. todo... implement ROI-configurations...
 
 #### How to adapt the OCR tools:
 
