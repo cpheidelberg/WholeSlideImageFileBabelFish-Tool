@@ -70,14 +70,15 @@ WSI Babelfish needs to know which information (staining-letters, block-num, etc.
 
 For this, WSI-BabelFish can load ROI-configuration files. (ROI = Region of Interest).
 
-To create a new ROI-configuration file, one can use the scripts located in `./tools_ROIconfig` and some open source tools:
+To create a new ROI-configuration file, please follow these steps:
 
 1. Download and install [ImageJ](https://imagej.net/ij/).
 2. Get a macro-image (png or jpg) of one of your slide-files. To extract a macro-image from a WSI, you can use the `extract_macro_image.py` script in `./tools_ROIconfig`.
 3. Open the macro-image in ImageJ.
 4. Use the `Rectangle`-Tool to draw ROI's. Add each rectangle to a ROI-set using right-mouse click -> `add to ROI-Manager` and name each ROI accordingly to what information is located in this region.
-5. In the ROI manager, select all ROIs and export them as a RoiSet zip file and copy it into the `./tools_ROIconfig` directory.
-6. todo... implement ROI-configurations...
+5. In the ROI manager, select all ROIs and export them as one RoiSet zip file.
+
+... todo ...
 
 #### How to adapt the OCR tools:
 
@@ -113,7 +114,7 @@ python -m pip install rapidfuzz
 python -m pip install thefuzz
 python -m pip install tqdm
 python -m pip install icecream
-
+python -m pip install roifile
 ```
 
 ### Install openslide:
