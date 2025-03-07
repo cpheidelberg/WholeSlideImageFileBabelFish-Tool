@@ -75,7 +75,10 @@ To create a new ROI-configuration file, please follow these steps:
 2. Get a macro-image (png or jpg) of one of your slide-files. To extract one or multiple macro-images from a WSI, 
 you can use: 
 ````
-python tools_ROIconfig/extract_macro_images.py --in_folder <path_to_folder_containing_wsis> --file_type <e.g. .ndpi or .svs etc>
+python tools_ROIconfig/extract_macro_images.py 
+--in_folder <path_to_folder_containing_wsis> 
+--file_type <e.g. .ndpi or .svs etc>
+--max_samples 10
 ````
 4. Open the macro-image in ImageJ.
 4. Use the `Rectangle`-Tool to draw ROI's. Add each rectangle to a ROI-set using right-mouse click -> `add to ROI-Manager` and name each ROI accordingly to what information is located in this region.

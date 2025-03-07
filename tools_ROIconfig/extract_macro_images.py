@@ -6,6 +6,7 @@ def main():
     parser.add_argument('--openslide_dll', type=str, required=False, default=None, help='Path to the OpenSlide DLL directory')
     parser.add_argument('--in_folder', type=str, required=True, help='Input folder containing WSI files')
     parser.add_argument('--file_type', type=str, required=True, help='File type postfix to filter WSI files')
+    parser.add_argument('--max_samples', type=str, required=False, default=None, help='File type postfix to filter WSI files')
 
     args = parser.parse_args()
 
@@ -28,6 +29,7 @@ def main():
         raise ValueError(f"Failed to parse arguments: {e}. \nPlease provide the input folder as first argument and the "
                          f"file name postfixes as the rest of the arguments.")
 
+    num_samples_processed = 0
     for wsi_file_name in os.listdir(in_folder):
 
         if any([not wsi_file_name.endswith(file_name_postfix) for file_name_postfix in file_name_postfixes]):
@@ -44,6 +46,11 @@ def main():
         out_path = wsi_file_path.replace(file_type, '') + "_macro.png"
         macro_img.save(out_path)
         print(f"Extracted \t{out_path}")
+
+        if args.max_samples is not None:
+            num_samples_processed += 1
+            if num_samples_processed >= int(args.max_samples):
+                break
 
 if __name__ == "__main__":
     main()

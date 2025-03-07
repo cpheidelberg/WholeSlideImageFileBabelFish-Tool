@@ -495,7 +495,7 @@ class RoiBasedMetaDataExtractor():
         rois = roiread(roi_path)
         return rois
 
-    def extract_metadata_with_roiset(self, wsi_file_path, these_rois_are_datamatrices=[], debug_mode=False):
+    def extract_metadata_with_roiset(self, wsi_file_path, these_rois_are_datamatrices=[], debug_mode=False, pxl_offset = 0):
 
         # load wsi object with openslide:
         wsi = openslide.OpenSlide(wsi_file_path)
@@ -503,8 +503,6 @@ class RoiBasedMetaDataExtractor():
         macro_img = wsi.associated_images[WSI_MACRO_IMG_KEY]
 
         meta_data = {roi.name: None for roi in self.rois}
-
-        pxl_offset = 0
 
         for roi in self.rois:
             debug_file_name = f"{wsi_file_path}.ROIresult.{roi.name}.png"
@@ -531,7 +529,7 @@ class RoiBasedMetaDataExtractor():
                     cv2.imwrite(debug_file_name.replace('.png', '.out.png'), macro_img_array)
 
                 h, w = macro_img_array.shape[:2]
-                return decode((macro_img_array.tobytes(), w, h))
+                meta_data[roi.name] = decode((macro_img_array.tobytes(), w, h))
             else:
                 pass # todo: implement metadata extraction from ROIs
 
@@ -544,7 +542,6 @@ if __name__ == "__main__":
     roi_extractor.extract_metadata_with_roiset("D:\\Research\\Slides\\lufi-test\\to_whatch\\LuFi001_I_HE_PAS.ndpi",
                                                these_rois_are_datamatrices=["slide-id"], debug_mode=True)
 
-    a = 3
     exit()
 
     #### old tests with hard-coded meta-extraction:
