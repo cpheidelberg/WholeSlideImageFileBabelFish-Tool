@@ -1,4 +1,4 @@
-# %% import
+# import
 import sys
 from thefuzz import fuzz
 import matplotlib.pyplot as plt
@@ -17,12 +17,17 @@ SmallPortion = SmallHealingPortion(method="ball")
 LargePortion = LargeHealingPortion()
 
 from tools_MetadataExtraction.utils_block import additional_OCR, find_block_id, find_match
-from tools_MetadataExtraction.utils_string import ends_with_any, find_string_with_pattern, find_first_number, count_numbers
+from tools_MetadataExtraction.utils_string import ends_with_any, find_string_with_pattern, find_first_number, \
+    count_numbers
 from tools_MetadataExtraction.utils_string import count_characters, check_pattern, special_characters
 from tools_MetadataExtraction.TextFindings import coordinates_to_left_top_width_height
 from tools_MetadataExtraction.utils_ocr import adapt_position
 
+from roifile import roiread
+
 import os
+
+WSI_MACRO_IMG_KEY = 'macro'
 
 if hasattr(os, 'add_dll_directory'):  # Windows
     try:
@@ -37,7 +42,7 @@ if hasattr(os, 'add_dll_directory'):  # Windows
               f"On windows, you have to pass openslide dll directory as first argv "
               f"(e.g. .../OpenSlide/openslide-bin-4.0.0.2-windows-x64/bin) \n"
               f"and the PYLIBDMTX dll directory as second argv "
-              f"(e.g. ...\Lib\site-packages\pylibdmtx\libdmtx_64bit) "
+              f"(e.g. .../Lib/site-packages/pylibdmtx/libdmtx_64bit) "
               f"in order to be able to import openbslide and pylibmtx!")
         import openslide
         from pylibdmtx.pylibdmtx import decode
@@ -46,7 +51,7 @@ else:
     from pylibdmtx.pylibdmtx import decode
 
 
-# %% define class to read the label
+# define class to read the label
 class LabelReader():
     def __init__(self, file, methods=None):
 
@@ -73,7 +78,7 @@ class LabelReader():
             if ends_with_any(file):
                 self.macro = cv2.imread(file)
             else:
-                self.macro = np.array(self.wsi.associated_images['macro'])
+                self.macro = np.array(self.wsi.associated_images[WSI_MACRO_IMG_KEY])
 
     def __get_label(self):
 
@@ -84,7 +89,7 @@ class LabelReader():
             if isinstance(self.wsi, str):
                 img = cv2.imread(self.wsi)
             else:
-                img = np.array(self.wsi.associated_images['macro'])
+                img = np.array(self.wsi.associated_images[WSI_MACRO_IMG_KEY])
 
         size_factor = 1
         img = cv2.resize(img, (size_factor * img.shape[1], size_factor * img.shape[0]))
@@ -117,7 +122,7 @@ class LabelReader():
             if isinstance(self.wsi, str):
                 label = cv2.imread(self.wsi)
             else:
-                label = np.array(self.wsi.associated_images['macro'])
+                label = np.array(self.wsi.associated_images[WSI_MACRO_IMG_KEY])
 
             label = enhance_contrast(label)
             label = sharpen_image(label)
@@ -128,7 +133,8 @@ class LabelReader():
             return label
 
 
-# %% define the class for getting information from the found word soup
+#
+# define the class for getting information from the found word soup
 class BableFish():
     def __init__(self, bable_list, label_image, TextFound=None, staining_list="StoneOfRosette_Stainings.xlsx"):
 
@@ -393,7 +399,8 @@ class BableFish():
         self.fileID_SectraStyle = fileID_SectraStyle
 
 
-# %% define the combined class
+#
+# define the combined class
 class HitchhickerGuide():
     def __init__(self, file_path, methods=["SmallPortion", 'conventional']):
 
@@ -474,20 +481,87 @@ class HitchhickerGuide():
         self.words_found = self.TextFound.finding.tolist()
 
 
-# %% test section
+class RoiBasedMetaDataExtractor():
+
+    def __init__(self, roi_set_path, methods=None):
+
+        if methods is None:
+            methods = ["SmallPortion", 'conventional']
+
+        # load roi:
+        self.rois = self.load_roi_set(roi_set_path)
+
+    def load_roi_set(self, roi_path):
+        rois = roiread(roi_path)
+        return rois
+
+    def extract_metadata_with_roiset(self, wsi_file_path, these_rois_are_datamatrices=[], debug_mode=False):
+
+        # load wsi object with openslide:
+        wsi = openslide.OpenSlide(wsi_file_path)
+
+        macro_img = wsi.associated_images[WSI_MACRO_IMG_KEY]
+
+        meta_data = {roi.name: None for roi in self.rois}
+
+        pxl_offset = 0
+
+        for roi in self.rois:
+            debug_file_name = f"{wsi_file_path}.ROIresult.{roi.name}.png"
+            left = roi.left + pxl_offset
+            right = roi.right + pxl_offset
+            top = roi.top + pxl_offset
+            bottom = roi.bottom + pxl_offset
+            if roi.name in these_rois_are_datamatrices:
+                macro_img_array = np.array(macro_img)
+                macro_img_array = enhance_contrast(macro_img_array)
+                macro_img_array = sharpen_image(macro_img_array)
+
+                if debug_mode:
+                    cv2.imwrite(debug_file_name.replace('.png', '.in.png'), macro_img_array)
+
+                macro_img_array = macro_img_array[top:bottom, :]
+                macro_img_array = macro_img_array[:, left:right]
+                macro_img_array = cv2.cvtColor(macro_img_array, cv2.COLOR_BGR2GRAY)
+
+                # slide label is usually left, so lets turn it to the right to have the label at top:
+                macro_img_array = cv2.rotate(macro_img_array, cv2.ROTATE_90_CLOCKWISE)
+
+                if debug_mode:
+                    cv2.imwrite(debug_file_name.replace('.png', '.out.png'), macro_img_array)
+
+                h, w = macro_img_array.shape[:2]
+                return decode((macro_img_array.tobytes(), w, h))
+            else:
+                pass # todo: implement metadata extraction from ROIs
+
+
+
+# test section
 if __name__ == "__main__":
-    # %% test label readinng class
+    #### new tests with ROI-config file supported metadata-extraction:
+    roi_extractor = RoiBasedMetaDataExtractor("./tools_ROIconfig/RoiSetE.zip")
+    roi_extractor.extract_metadata_with_roiset("D:\\Research\\Slides\\lufi-test\\to_whatch\\LuFi001_I_HE_PAS.ndpi",
+                                               these_rois_are_datamatrices=["slide-id"], debug_mode=True)
+
+    a = 3
+    exit()
+
+    #### old tests with hard-coded meta-extraction:
+    # test label readinng class
     Test = LabelReader("./test_data/test#3.ndpi")
     print(f"slide label read has size {Test.slide_label.shape}")
     print(f"slide data matrx read has size {Test.slide_datamatrix.shape}")
 
-    # %% test the Letter Soup Class
+    #
+    # test the Letter Soup Class
     test_soup = ['22 CD2O', 'Kt', 'Uni HD', '08,02.2024', '6094124', '40499']
     Test = BableFish(test_soup)
     Test.get_label()
     print(f"label derived is {Test.fileID}")
 
-    # %% tes the Hitchhikers Guide class
+    #
+    # tes the Hitchhikers Guide class
     Test = HitchhickerGuide("./test_data/test#2.ndpi")  # known HE
     Test.get_slideID()
     plt.imshow(Test.SlideLabel.macro)
@@ -506,7 +580,7 @@ if __name__ == "__main__":
     Test = HitchhickerGuide("./test_data/test#4.ndpi")  # known CD20
     Test.get_slideID()
 
-    # %%
+    #
     plt.imshow(Test.SlideLabel.macro)
     plt.savefig("test_data/test#5_macro.png")
     print(f"words found are {Test.LabelText.soup}")

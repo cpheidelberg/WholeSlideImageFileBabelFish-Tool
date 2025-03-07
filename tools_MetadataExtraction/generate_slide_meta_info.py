@@ -24,7 +24,7 @@ def is_valid_case_id(case_id: str) -> bool:
 def get_slide_meta_data(path_to_slide, slide_reader: HitchhickerGuide, case_id_length=6):
     '''
     returns a dict which contains all the meta info about the slide using qr-codes and OCR
-    Returned dict needs the following schema (because sectra patho-PACS works with this schema):
+    Returned dict needs the following schema (because our patho-PACS works with this schema):
 
     {
         "RequestId": "E001",
@@ -71,14 +71,16 @@ def get_slide_meta_data(path_to_slide, slide_reader: HitchhickerGuide, case_id_l
             slide_id = slide_id.split(".")[0]
         print(f"WARNING: Failed to decode data-matrix of {path_to_slide} ({e}). Using file-name as slide_id ({slide_id}).")
 
+    # if valid slide id is found, meta-data consists of slide-id and Staining.
     if is_valid_slide_id(slide_id):
         meta_data["SlideId"] = slide_id # Our Slides PACS will use this id to identify the slide
         meta_data["Staining"] = {"Name": slide_reader.stain}
 
     else: # it is a roche- or other  slide, so we have to check for the detected texts on the slide to get meta-data
 
-        # collect meta-data via ocr:
+        print(f"WARNING: Slide-ID {slide_id} is not valid. Using OCR to extract meta-data.")
 
+        # collect meta-data via ocr:
         case_id = slide_reader.case
 
         # ensure that cas_id has always length 6:

@@ -6,7 +6,6 @@ default_wait_for_transfer_period = 1  # in seconds
 def get_new_imported_slides(conf: dict):
 
     if not conf['debug_mode']:
-        print("Config-ERROR: This tool only works on debug mode currently!")
         raise NotImplementedError("Config-ERROR: This tool only works on debug mode currently!")
 
     folder_name_for_imported_slides = "meta-extraction-results"
