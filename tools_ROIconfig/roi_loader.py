@@ -13,7 +13,7 @@ def load_roi_set(roi_path):
         print()
 
 def main():
-    load_roi_set('RoiSetE.zip')
+    load_roi_set('RoiSetE.zip') # test the roiset loader
 
 if __name__ == "__main__":
     main()

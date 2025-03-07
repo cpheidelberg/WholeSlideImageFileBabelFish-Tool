@@ -1,0 +1,12 @@
+folder_to_watch: D:\Research\Slides\lufi-test\to_whatch # the folder to watch for new wsi files. New imported files will be processed and moved to the target folder, or renamed.
+target_folder: D:\Research\Slides\lufi-test\target # the folder where the processed files will be moved to
+patterns: # the patterns of the files to watch for. Only files with these patterns will be processed
+- '*.ndpi'
+ignore_directories: true # ignore directories in the watched folder or not
+debug_mode: true # if true, more informations will be printed and or logged into the log file
+only_extract_meta_data: true # if true, only the meta data will be extracted and saved in the target folder (as jsons), but the wsi file will not be moved
+plausibility_check: true # if true, the extracted meta data will be checked for plausibility. If the check fails, the wsi file will not be moved and an error-log-file will be created in the target folder.
+
+# these features are not implemented yet:
+ignore_patterns: [] # does currently nothing. Will be implemented in future
+rename_wsi_files: false # if true, the wsi files will be renamed (extracted from the meta data)

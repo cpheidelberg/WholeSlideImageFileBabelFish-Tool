@@ -3,21 +3,29 @@ from tools_MetadataExtraction.generate_slide_meta_info import get_slide_meta_dat
 from tools_MetadataExtraction.HitchhikersGuide import HitchhickerGuide
 from tools_FileObserving.SlidesWatchdog import get_new_imported_slides
 import time, os, sys
-import json
 import datetime
 import openslide
 import pandas as pd
 from glob import glob
 import traceback
+import yaml
+import json
 
 ### script params: ###
-conf_data_path= './tools_FileObserving/slides_meta_data_extraction_test.json'
+conf_data_path= './tools_FileObserving/slides_meta_data_extraction_test.yaml'
 schedule_time = 300 # seconds. can be very slow frequence. The event handler will allways be triggered, even during sleep
-config = json.load(open(conf_data_path))
+# load config from yaml file:
+with open(conf_data_path, 'r') as file:
+    config = yaml.safe_load(file)
 out_base_path = config["target_folder"]
 log_folder = ".logs"
 tables_folder = "tables"
 save_print_to_log_file = True
+
+# store config as yaml:
+with open(f"./tools_FileObserving/slides_meta_data_extraction_test.yaml", 'w') as file:
+    yaml.dump(config, file)
+exit()
 
 if not os.path.exists(config["folder_to_watch"] + f"/{log_folder}"):
     os.makedirs(config["folder_to_watch"] + f"/{log_folder}")
