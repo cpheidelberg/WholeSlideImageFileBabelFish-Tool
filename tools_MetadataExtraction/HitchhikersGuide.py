@@ -481,68 +481,8 @@ class HitchhickerGuide():
         self.words_found = self.TextFound.finding.tolist()
 
 
-class RoiBasedMetaDataExtractor():
-
-    def __init__(self, roi_set_path, methods=None):
-
-        if methods is None:
-            methods = ["SmallPortion", 'conventional']
-
-        # load roi:
-        self.rois = self.load_roi_set(roi_set_path)
-
-    def load_roi_set(self, roi_path):
-        rois = roiread(roi_path)
-        return rois
-
-    def extract_metadata_with_roiset(self, wsi_file_path, these_rois_are_datamatrices=[], debug_mode=False, pxl_offset = 0):
-
-        # load wsi object with openslide:
-        wsi = openslide.OpenSlide(wsi_file_path)
-
-        macro_img = wsi.associated_images[WSI_MACRO_IMG_KEY]
-
-        meta_data = {roi.name: None for roi in self.rois}
-
-        for roi in self.rois:
-            debug_file_name = f"{wsi_file_path}.ROIresult.{roi.name}.png"
-            left = roi.left + pxl_offset
-            right = roi.right + pxl_offset
-            top = roi.top + pxl_offset
-            bottom = roi.bottom + pxl_offset
-            if roi.name in these_rois_are_datamatrices:
-                macro_img_array = np.array(macro_img)
-                macro_img_array = enhance_contrast(macro_img_array)
-                macro_img_array = sharpen_image(macro_img_array)
-
-                if debug_mode:
-                    cv2.imwrite(debug_file_name.replace('.png', '.in.png'), macro_img_array)
-
-                macro_img_array = macro_img_array[top:bottom, :]
-                macro_img_array = macro_img_array[:, left:right]
-                macro_img_array = cv2.cvtColor(macro_img_array, cv2.COLOR_BGR2GRAY)
-
-                # slide label is usually left, so lets turn it to the right to have the label at top:
-                macro_img_array = cv2.rotate(macro_img_array, cv2.ROTATE_90_CLOCKWISE)
-
-                if debug_mode:
-                    cv2.imwrite(debug_file_name.replace('.png', '.out.png'), macro_img_array)
-
-                h, w = macro_img_array.shape[:2]
-                meta_data[roi.name] = decode((macro_img_array.tobytes(), w, h))
-            else:
-                pass # todo: implement metadata extraction from ROIs
-
-
-
 # test section
 if __name__ == "__main__":
-    #### new tests with ROI-config file supported metadata-extraction:
-    roi_extractor = RoiBasedMetaDataExtractor("./tools_ROIconfig/RoiSetE.zip")
-    roi_extractor.extract_metadata_with_roiset("D:\\Research\\Slides\\lufi-test\\to_whatch\\LuFi001_I_HE_PAS.ndpi",
-                                               these_rois_are_datamatrices=["slide-id"], debug_mode=True)
-
-    exit()
 
     #### old tests with hard-coded meta-extraction:
     # test label readinng class
