@@ -167,14 +167,17 @@ def main():
 
     #### testing with ROI-config file supported metadata-extraction:
 
-    debug_mode = True
-
     conf_data_path = sys.argv[3]
     # load config from yaml file:
     with open(conf_data_path, 'r') as file:
         config = yaml.safe_load(file)
 
     test_folder = config['folder_to_watch']
+    debug_mode = config['debug_mode']
+
+    if config['rename_wsi_files']:
+        if not config['renaming_pattern']:
+            raise ValueError("If you want to rename the WSI files, you have to provide a renaming pattern.")
 
     print(f"Using config file: {conf_data_path}, with configuration:")
     for k_config in config:
@@ -184,8 +187,11 @@ def main():
                                  for roi_name in config['extraction_rules']}
 
     roi_extractor = RoiBasedMetaDataExtractor(config['ROI_set_file'], config=config['extraction_rules'])
-    wsi_files = [os.path.join(test_folder, f) for f in os.listdir(test_folder) if f.endswith(".ndpi")]
+    wsi_files = []
+    for file_type in config['wsi_types']:
+        wsi_files += [os.path.join(test_folder, f) for f in os.listdir(test_folder) if f.endswith(file_type)]
     for wsi_file in tqdm(wsi_files):
+
         both_results = {}
         merged_result = {}
         for ocr_engine in ["pytesseract", "easyocr"]:
@@ -239,10 +245,14 @@ def main():
                 json.dump(errors, f, indent=4)
         else:
             # rename wsi:
-            wsi_name = os.path.basename(wsi_file)
-            new_wsi_name = f"{merged_result['slide-id']}_{merged_result['staining']}"
-            #print(f"Renaming {wsi_name} to {new_wsi_name}")
-            os.rename(wsi_file, os.path.join(test_folder, new_wsi_name))
+            if config['rename_wsi_files']:
+                wsi_name = os.path.basename(wsi_file)
+                fyle_type = '.' + wsi_name.split('.')[-1]
+                new_wsi_name = f"{config['renaming_pattern'].format(**merged_result)}{fyle_type}"
+                print(f"Renaming '{wsi_name}' to '{new_wsi_name}'")
+                #os.rename(wsi_file, os.path.join(test_folder, new_wsi_name))
+
+            # todo: implement all other metadata export methods (json, csv, etc.)...
 
     exit()
 
