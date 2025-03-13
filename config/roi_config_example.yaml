@@ -1,0 +1,32 @@
+### General settings:
+folder_to_watch: D:\Research\Slides\medatata_extraction_test # the folder to watch for new wsi files. New imported files will be processed and moved to the target folder, or renamed.
+target_folder: '' # the folder where the processed files will be moved to (NOT IMPLEMENTED YET!
+wsi_types: ['.ndpi']
+debug_mode: true # if true, more informations will be printed and or logged into the log file
+
+### OCR (and QR-code-reading) settings:
+ROI_set_file: 'config/roi_set_example.zip' # the file with the ROIs for the OCR (and datamatrix) extraction
+
+# renaming and how to store the extracted metadata
+rename_wsi_files: true # if true, the wsi files will be renamed (extracted from the metadata)
+renaming_pattern: '{slide-id}_{staining}' # the pattern for the renaming of the wsi files. Needs to have a shape like '{slide-id}_{staining}'
+force_meta_extraction: false # if true, the metadata will be extracted even if the metadata for a wsi file is already extracted (e.g. according to the renaming pattern)
+
+# the rules for the metadata extraction:
+extraction_rules: # the rules for the metadata extraction
+  slide-id: # rules and settings of the 'slide-id' field
+    allowed_chars: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZv-'
+    is_datamatrix: false
+    plausibility_regex_check:
+    - '^(CMCP.{0,2}v)' # slide-id has to start with 'CMCP', then 0-2 characters, then 'v'
+    - '(-)' # slide-id should not contain a '-'
+    replacement_patterns: # replacement patterns
+    - ['\s+$', ''] # remove spaces at the end
+    - ['^.*?CMCP', 'CMCP'] # remove everything before 'CMCP', e.g. '-CMCP1234' -> 'CMCP1234'
+  staining:
+    allowed_chars: 'HE'
+    is_datamatrix: false
+    plausibility_regex_check:
+    - '(HE)' # should contain 'HE' (in this case there are only HE stained slides....
+    replacement_patterns:
+    - ['\s+$', ''] # remove spaces at the end

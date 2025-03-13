@@ -6,6 +6,8 @@ import re
 from roifile import roiread
 import os, sys
 import pytesseract
+import json
+import filecmp
 
 WSI_MACRO_IMG_KEY = 'macro'
 
@@ -186,11 +188,46 @@ def main():
     plausibility_regex_checks = {roi_name: config['extraction_rules'][roi_name]['plausibility_regex_check']
                                  for roi_name in config['extraction_rules']}
 
+    # precompute the renaming pattern as a list:
+    renaming_pattern_list = []  # should be a list of shape [meta_key, seperation_symbol, meta_key, seperation_symbol, ..., meta_key]
+    if config['rename_wsi_files']:
+        assert '{' in config['renaming_pattern'] and '}' in config['renaming_pattern'], 'renaming_pattern must contain at least one pair of curly brackets!'
+        for start_word in config['renaming_pattern'].split('{'):
+            if start_word == '':
+                continue
+
+            if len(start_word.split('}')) == 1:
+                meta_key = start_word.split('}')[0]
+                assert meta_key in [roi_name for roi_name in config['extraction_rules']], \
+                    f"Meta key '{meta_key}', which appears in the renaming_pattern, not found in extraction rules!"
+                if meta_key != '':
+                    renaming_pattern_list += [meta_key]
+            elif len(start_word.split('}')) == 2:
+                meta_key = start_word.split('}')[0]
+                assert meta_key in [roi_name for roi_name in config['extraction_rules']], \
+                    f"Meta key '{meta_key}', which appears in the renaming_pattern, not found in extraction rules!"
+                seperation_symbol = start_word.split('}')[1]
+                renaming_pattern_list += [meta_key, seperation_symbol] if seperation_symbol else [meta_key]
+            else:
+                raise ValueError(f"Renaming pattern '{config['renaming_pattern']}' is not supported!")
+
+        print(f"Renaming pattern list: {renaming_pattern_list}")
+
     roi_extractor = RoiBasedMetaDataExtractor(config['ROI_set_file'], config=config['extraction_rules'])
     wsi_files = []
     for file_type in config['wsi_types']:
         wsi_files += [os.path.join(test_folder, f) for f in os.listdir(test_folder) if f.endswith(file_type)]
     for wsi_file in tqdm(wsi_files):
+
+        # skip if wsi_file is already processed (if renaming_pattern can be found in filename and if values are plausible)
+        if config['rename_wsi_files'] and not config['force_meta_extraction']:
+            wsi_name = os.path.basename(wsi_file)
+            fyle_type = os.path.basename(wsi_file).split('.')[-1]
+            wsi_name = wsi_name.replace(fyle_type, '')
+            if '{' in wsi_name and '}' in wsi_name:
+                if len(wsi_name.split('{')) == len(wsi_name.split('}')) and len(wsi_name.split('{')) == len(config['renaming_pattern'].split('{')):
+                    print(f"Skipping '{wsi_name}' as it is already processed (renaming pattern '{config['renaming_pattern']}' matches with '{wsi_name}').")
+                    continue
 
         both_results = {}
         merged_result = {}
@@ -240,7 +277,7 @@ def main():
             print(f"Plausibility check failed for {wsi_file}:")
             print(errors)
             # store the error in a json file:
-            import json
+
             with open(f"{wsi_file}.ERROR.json", 'w') as f:
                 json.dump(errors, f, indent=4)
         else:
@@ -248,9 +285,26 @@ def main():
             if config['rename_wsi_files']:
                 wsi_name = os.path.basename(wsi_file)
                 fyle_type = '.' + wsi_name.split('.')[-1]
-                new_wsi_name = f"{config['renaming_pattern'].format(**merged_result)}{fyle_type}"
-                print(f"Renaming '{wsi_name}' to '{new_wsi_name}'")
-                #os.rename(wsi_file, os.path.join(test_folder, new_wsi_name))
+                new_wsi_name = '' #f"{config['renaming_pattern'].format(**merged_result)}{fyle_type}"
+                for i, key in enumerate(renaming_pattern_list):
+                    if key in merged_result:
+                        new_wsi_name += ('{' + merged_result[key] + '}')
+                    else:
+                        new_wsi_name += key
+                new_wsi_name += fyle_type
+
+                if os.path.exists(os.path.join(test_folder, new_wsi_name)):
+                    # is the file with same name is a different file than the current one?
+                    if not filecmp.cmp(wsi_file, os.path.join(test_folder, new_wsi_name)):
+                        print(f"WARNING: File '{new_wsi_name}' already exists as different file! "
+                              f"Skipping and storing error in '{wsi_file}.ERROR.json'...")
+                        with open(f"{wsi_file}.ERROR.json", 'w') as f:
+                            errors["renaming-error"] = f"File  already exists!"
+                            json.dump(errors, f, indent=4)
+                        continue
+                else:
+                    print(f"Renaming '{wsi_name}' to '{new_wsi_name}'")
+                    os.rename(wsi_file, os.path.join(test_folder, new_wsi_name))
 
             # todo: implement all other metadata export methods (json, csv, etc.)...
 
