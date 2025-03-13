@@ -6,24 +6,29 @@ import re
 from roifile import roiread
 import os, sys
 import pytesseract
-import json
-import filecmp
+
+import argparse
+parser = argparse.ArgumentParser(description='Process some arguments.')
+parser.add_argument('--openslide_dll', type=str, required=False, default=None, help='Path to the OpenSlide DLL directory')
+parser.add_argument('--dmxt_dll', type=str, required=False, default=None, help='Path to the libdmxt_dll DLL directory')
+parser.add_argument('--config', type=str, required=True, help='the .yaml config file (use config/roi_config_example.yaml as template for your configuration!)')
+args = parser.parse_args()
 
 WSI_MACRO_IMG_KEY = 'macro'
 
 if hasattr(os, 'add_dll_directory'):  # Windows
     try:
-        OPENSLIDE_PATH = sys.argv[1]
-        PYLIBDMTX_PATH = sys.argv[2]
+        OPENSLIDE_PATH = args.openslide_dll
+        PYLIBDMTX_PATH = args.dmxt_dll
         with os.add_dll_directory(OPENSLIDE_PATH):
             import openslide
         with os.add_dll_directory(PYLIBDMTX_PATH):
             from pylibdmtx.pylibdmtx import decode
     except:
         print(f"WARNING: Failed to add necessary dll directories for openbslide and pylibmtx!\n"
-              f"On windows, you have to pass openslide dll directory as first argv "
+              f"On windows, you have to pass openslide dll directory as argument --openslide_dll "
               f"(e.g. .../OpenSlide/openslide-bin-4.0.0.2-windows-x64/bin) \n"
-              f"and the PYLIBDMTX dll directory as second argv "
+              f"and the PYLIBDMTX dll directory as argument --dmxt_dll "
               f"(e.g. .../Lib/site-packages/pylibdmtx/libdmtx_64bit) "
               f"in order to be able to import openbslide and pylibmtx!")
         import openslide
@@ -34,6 +39,11 @@ else:
 class RoiBasedMetaDataExtractor():
 
     def __init__(self, roi_set_path, config=None):
+        '''
+        Initialize the ROI-based metadata extractor.
+        :param roi_set_path: The path to the ROI set file (.zip, exported roi-set from ImageJ).
+        :param config: A dictionary with the ROI names as keys and the configuration as values.
+        '''
 
         # load roi:
         self.rois = roiread(roi_set_path)
@@ -58,6 +68,14 @@ class RoiBasedMetaDataExtractor():
     def extract_metadata_with_roiset(self, wsi_file_path, debug_mode=False,
                                      pxl_offset=0, ocr_engine="easyocr"
                                      ):
+        '''
+        Extract metadata from the WSI file using the ROI set.
+        :param wsi_file_path: The path to the WSI file to process.
+        :param debug_mode: If True, debug images are stored in basepath(wsi_file_path)/metadata_debug.
+        :param pxl_offset: The offset in pixels to add to the ROI coordinates.
+        :param ocr_engine: The OCR engine to use. Supported engines are 'easyocr' and 'pytesseract'.
+        :return: A dictionary with the ROI names as keys and the extracted metadata as values.
+        '''
 
         if not ocr_engine.lower() in ["easyocr", "pytesseract"]:
             raise ValueError(f"OCR engine {ocr_engine} not supported! Supported engines are 'easyocr' and 'pytesseract'.")
@@ -169,7 +187,7 @@ def main():
 
     #### testing with ROI-config file supported metadata-extraction:
 
-    conf_data_path = sys.argv[3]
+    conf_data_path = "./config/roi_config_example.yaml"
     # load config from yaml file:
     with open(conf_data_path, 'r') as file:
         config = yaml.safe_load(file)
@@ -187,31 +205,6 @@ def main():
 
     plausibility_regex_checks = {roi_name: config['extraction_rules'][roi_name]['plausibility_regex_check']
                                  for roi_name in config['extraction_rules']}
-
-    # precompute the renaming pattern as a list:
-    renaming_pattern_list = []  # should be a list of shape [meta_key, seperation_symbol, meta_key, seperation_symbol, ..., meta_key]
-    if config['rename_wsi_files']:
-        assert '{' in config['renaming_pattern'] and '}' in config['renaming_pattern'], 'renaming_pattern must contain at least one pair of curly brackets!'
-        for start_word in config['renaming_pattern'].split('{'):
-            if start_word == '':
-                continue
-
-            if len(start_word.split('}')) == 1:
-                meta_key = start_word.split('}')[0]
-                assert meta_key in [roi_name for roi_name in config['extraction_rules']], \
-                    f"Meta key '{meta_key}', which appears in the renaming_pattern, not found in extraction rules!"
-                if meta_key != '':
-                    renaming_pattern_list += [meta_key]
-            elif len(start_word.split('}')) == 2:
-                meta_key = start_word.split('}')[0]
-                assert meta_key in [roi_name for roi_name in config['extraction_rules']], \
-                    f"Meta key '{meta_key}', which appears in the renaming_pattern, not found in extraction rules!"
-                seperation_symbol = start_word.split('}')[1]
-                renaming_pattern_list += [meta_key, seperation_symbol] if seperation_symbol else [meta_key]
-            else:
-                raise ValueError(f"Renaming pattern '{config['renaming_pattern']}' is not supported!")
-
-        print(f"Renaming pattern list: {renaming_pattern_list}")
 
     roi_extractor = RoiBasedMetaDataExtractor(config['ROI_set_file'], config=config['extraction_rules'])
     wsi_files = []
@@ -264,49 +257,14 @@ def main():
                     merged_result[roi_name] = both_results["pytesseract"][roi_name]
                     used_ocr_engine[roi_name] = "pytesseract"
 
-        '''print(f"Results for {wsi_file}:")
+        print(f"=== Results for {wsi_file} ===")
         for k in merged_result:
             print(f"{k}: {merged_result[k]}")
-            print(f"  Used OCR engine: {used_ocr_engine[k]}")
             if errors["pytesseract"][k]:
                 print(f"  Errors for pytesseract: {errors['pytesseract'][k]}")
             if errors["easyocr"][k]:
-                print(f"  Errors for easyocr: {errors['easyocr'][k]}")'''
+                print(f"  Errors for easyocr: {errors['easyocr'][k]}")
 
-        if any(merged_result[k] is None for k in merged_result):
-            print(f"Plausibility check failed for {wsi_file}:")
-            print(errors)
-            # store the error in a json file:
-
-            with open(f"{wsi_file}.ERROR.json", 'w') as f:
-                json.dump(errors, f, indent=4)
-        else:
-            # rename wsi:
-            if config['rename_wsi_files']:
-                wsi_name = os.path.basename(wsi_file)
-                fyle_type = '.' + wsi_name.split('.')[-1]
-                new_wsi_name = '' #f"{config['renaming_pattern'].format(**merged_result)}{fyle_type}"
-                for i, key in enumerate(renaming_pattern_list):
-                    if key in merged_result:
-                        new_wsi_name += ('{' + merged_result[key] + '}')
-                    else:
-                        new_wsi_name += key
-                new_wsi_name += fyle_type
-
-                if os.path.exists(os.path.join(test_folder, new_wsi_name)):
-                    # is the file with same name is a different file than the current one?
-                    if not filecmp.cmp(wsi_file, os.path.join(test_folder, new_wsi_name)):
-                        print(f"WARNING: File '{new_wsi_name}' already exists as different file! "
-                              f"Skipping and storing error in '{wsi_file}.ERROR.json'...")
-                        with open(f"{wsi_file}.ERROR.json", 'w') as f:
-                            errors["renaming-error"] = f"File  already exists!"
-                            json.dump(errors, f, indent=4)
-                        continue
-                else:
-                    print(f"Renaming '{wsi_name}' to '{new_wsi_name}'")
-                    os.rename(wsi_file, os.path.join(test_folder, new_wsi_name))
-
-            # todo: implement all other metadata export methods (json, csv, etc.)...
 
     exit()
 
