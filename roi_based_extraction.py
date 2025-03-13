@@ -4,6 +4,10 @@ import yaml
 import json
 from tools_MetadataExtraction.RoiBasedMetaDataExtractor import RoiBasedMetaDataExtractor, regex_check
 import filecmp
+import datetime
+
+# script params:
+save_print_to_log_file = True
 
 # argument parsing:
 import argparse
@@ -23,7 +27,21 @@ def main():
     with open(conf_data_path, 'r') as file:
         config = yaml.safe_load(file)
 
-    test_folder = config['folder_to_watch']
+    log_folder = ".logs"
+    if not os.path.exists(config["folder_to_watch"] + f"/{log_folder}"):
+        os.makedirs(config["folder_to_watch"] + f"/{log_folder}")
+
+    # redirect prints into a log file:
+    if save_print_to_log_file:
+        lof_file = config["folder_to_watch"] + f"/{log_folder}/meta-extraction-log.log"
+        print(f"!!! Redirecting print output to {lof_file}. So please check this file for the output !!!")
+        log = open(lof_file, "a")
+        sys.stdout = log
+
+    time_stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    print(f"=== {time_stamp} ===")
+
+    folder_to_watch = config['folder_to_watch']
     debug_mode = config['debug_mode']
 
     if config['rename_wsi_files']:
@@ -65,8 +83,10 @@ def main():
     roi_extractor = RoiBasedMetaDataExtractor(config['ROI_set_file'], config=config['extraction_rules'])
     wsi_files = []
     for file_type in config['wsi_types']:
-        wsi_files += [os.path.join(test_folder, f) for f in os.listdir(test_folder) if f.endswith(file_type)]
+        wsi_files += [os.path.join(folder_to_watch, f) for f in os.listdir(folder_to_watch) if f.endswith(file_type)]
     for wsi_file in tqdm(wsi_files):
+
+        print(f"== {time_stamp} ==")
 
         # skip if wsi_file is already processed (if renaming_pattern can be found in filename and if values are plausible)
         if config['rename_wsi_files'] and not config['force_meta_extraction']:
@@ -133,9 +153,9 @@ def main():
                         new_wsi_name += key
                 new_wsi_name += fyle_type
 
-                if os.path.exists(os.path.join(test_folder, new_wsi_name)):
+                if os.path.exists(os.path.join(folder_to_watch, new_wsi_name)):
                     # is the file with same name is a different file than the current one?
-                    if not filecmp.cmp(wsi_file, os.path.join(test_folder, new_wsi_name)):
+                    if not filecmp.cmp(wsi_file, os.path.join(folder_to_watch, new_wsi_name)):
                         print(f"WARNING: File '{new_wsi_name}' already exists as different file! "
                               f"Skipping and storing error in '{wsi_file}.ERROR.json'...")
                         with open(f"{wsi_file}.ERROR.json", 'w') as f:
@@ -144,7 +164,7 @@ def main():
                         continue
                 else:
                     print(f"Renaming '{wsi_name}' to '{new_wsi_name}'")
-                    os.rename(wsi_file, os.path.join(test_folder, new_wsi_name))
+                    os.rename(wsi_file, os.path.join(folder_to_watch, new_wsi_name))
 
             # todo: implement all other metadata export methods (json, csv, etc.)...
 
