@@ -37,66 +37,6 @@ Successful extracted data will be collected in a table at `folder_to_watch/table
 
 Errors and warnings will be logged in `folder_to_watch/.logs/` (this is a hidden directory!).
 
-## How to configure WSI-BabelFish
-
-Can be configured by editing the file `tools_FileObserving/slides_meta_data_extraction.json`:
-
-WSI-BabelFish will watch the folder `folder_to_watch` (can be set in `slides_meta_data_extraction.json`) and trigger an event if
-new files which match pattern `patterns` have been uploaded to `folder_to_watch`.
-
-WSI-BabelFish will then extract the meta-data of the new imported slide and save it as json at 
-`target_folder/<slide-file>.ndpi.import`. 
-
-After the metadata extraction is done, WSI-BabelFish moves the slide to `target_folder/slide-file.ndpi` if, `only_extract_meta_data` is set to `False` in the config file (`slides_meta_data_extraction.json`).
-
-WSI-BabelFish needs to be executed frequently using a task scheduler.
-For this, one need to set up a scheduled task so that `/path/to/this/repo/main.py` gets executed each x minute. For this, see the next chapter(s):
-
-#### windows:
-We had some trouble to make WSI-BabelFish work together with the windows task scheduler. This was our solution:
-
-1. Open the Windows Task Scheduler
-2. Create a new task
-3. Set the action to run a program
-4. In the action-settings, enter `/path/to/this/repo/execute.bat` for "Program/Script" and enter `/path/to/this/repo` for "Start in" so that this will be used as working directory.
-5. Now modify the `execute.bat` accordingly to your environment. 
-
-#### linux:
-On linux one can use crontab to schedule the execution of `/path/to/this/repo/main.py`. 
-Feel free to edit this chapter if you have some experience with it!
-
-#### How to configure ROI-configurations:
-WSI Babelfish needs to know which information (staining-letters, block-num, etc...) is located in which region on the label of the slide.
-
-For this, WSI-BabelFish can load ROI-configuration files. (ROI = Region of Interest).\
-To create a new ROI-configuration file, please follow these steps:
-
-1. Download and install [ImageJ](https://imagej.net/ij/).
-2. Get a macro-image (png or jpg) of one of your slide-files. To extract one or multiple macro-images from a WSI, 
-you can use: 
-````
-python tools_ROIconfig/extract_macro_images.py 
---in_folder <path_to_folder_containing_wsis> 
---file_type <e.g. .ndpi or .svs etc>
---max_samples 10
-````
-4. Open the macro-image in ImageJ.
-4. Use the `Rectangle`-Tool to draw ROI's. Add each rectangle to a ROI-set using right-mouse click -> `add to ROI-Manager` and name each ROI accordingly to what information is located in this region.
-5. In the ROI manager, select all ROIs and export them as one RoiSet zip file.
-
-... todo ...
-
-#### How to adapt the OCR tools:
-
-Unfortunately, the OCR tools are not perfect and need to be adapted to the specific use case. 
-
-For this, one can edit the `tools_MetadataExtraction/HitchhikersGuide.py` code.
-Moreover, the function `get_slide_meta_data` in `tools_MetadataExtraction/extract_meta_data.py` can be adapted to change how the metadata dictionary should be built.
-
-Implement/adjust the function `is_valid_slide_id` and or `is_valid_case_id` in `tools_MetadataExtraction/extract_meta_data.py` to adjust how the plausibility check should be done on your extracted metadata.
-
-
-
 ## Installation
 
 We recommend to first create a conda environment to install WSI-BabelFish, e.g. using 
@@ -173,9 +113,101 @@ Then install pytesseract into your environment using ``python -m pip install pyt
 
 Feel free to edit this chapter if you have some experience with it!
 
-## Usage
+## How to configure your scheduler to execute WSI-BabelFish:
 
-### 
+WSI-BabelFish needs to be executed frequently using a task scheduler.
+For this, one need to set up a scheduled task so that `/path/to/this/repo/roi_based_extraction.py` gets executed each x minute. 
+For this, see the next chapter(s):
+
+### windows task scheduling:
+We had some trouble to make WSI-BabelFish work together with the windows task scheduler. This was our solution:
+
+1. Open the Windows Task Scheduler
+2. Create a new task
+3. Set the action to run a program
+4. In the action-settings, enter `/path/to/this/repo/execute.bat` for "Program/Script" and enter `/path/to/this/repo` for "Start in" so that this will be used as working directory.
+5. Now modify the `execute.bat` accordingly to your environment. 
+
+### linux task scheduling:
+On linux one can use crontab to schedule the execution of `/path/to/this/repo/roi_based_extraction.py`. 
+Feel free to edit this chapter if you have some experience with it!
+
+## How to configure roi_based_extraction.py
+
+### 1) Generate a RoiSet.zip file with your wsi files:
+WSI Babelfish needs to know which information (staining-letters, block-num, etc...) is located in which region on the label of the slide.
+
+For this, WSI-BabelFish can load ROI-configuration files. (ROI = Region of Interest).\
+To create a new ROI-configuration file, please follow these steps:
+
+1. Download and install [ImageJ](https://imagej.net/ij/).
+2. Get a macro-image (png or jpg) of one of your slide-files. To extract one or multiple macro-images from a WSI, 
+you can use: 
+````
+python tools_ROIconfig/extract_macro_images.py 
+--in_folder <path_to_folder_containing_wsis> 
+--file_type <e.g. .ndpi or .svs etc>
+--max_samples 10
+````
+4. Open the macro-image in ImageJ.
+4. Use the `Rectangle`-Tool to draw ROI's. Add each rectangle to a ROI-set using right-mouse click -> `add to ROI-Manager` and name each ROI accordingly to what information is located in this region.
+5. In the ROI manager, select all ROIs and export them as one RoiSet zip file.
+
+### 2) Configure the roi_based_extraction.py script:
+
+Firs, copy our configuration template file `config/roi_config_example.yaml`, rename it how you prefer and adjust the settings to your needs.
+
+Some words about the configuration parameters:
+
+On execution, roi_based_extraction.py processes all wsi files in the `folder_to_watch` (define in config yaml file) directory.
+A processed wsi file will then be renamed according to the parameter `renaming_pattern` (defined in config yaml file).
+If the file name of a loaded wsi file matches the `renaming_pattern`, the metadata-extraction will be skipped. This behaivior can be turned of by setting `force_meta_extraction` to `True`. 
+
+### 3) Test the configuration:
+
+To test your configuration yaml-file, set the `folder_to_watch` to a folder with some test-wsi's and execute the script with the following script arguments:
+(tip: Set `debug_mode` to `true` to get more information about the metadata-extraction process.)
+
+```
+roi_based_extraction.py --config config/roi_config_example.yaml --openslide_dll path\\to\\<user>\\OpenSlide\\openslide-bin-4.0.0.2-windows-x64\\bin --dmxt_dll  path\\to\\<user>\\conda-envs\\<env-name>\\lib\\site-packages\\pylibdmtx\\libdmtx-64.dll 
+
+```
+`--openslide_dll` and `--dmxt_dll` are only needed on windows. On linux, the script will find the dll's automatically.
+
+### 4) Automate the ROI-based extraction:
+
+To automate `roi_based_extraction.py`, simply execute it with a task scheduler as described in the previous chapter(s).
+
+## How to configure char_soup_based_extraction.py
+
+**WARRNING:** 
+This script is not yet ready for production use. 
+It is still in development and needs to be adapted intensively so that it fits your specific use case.
+We recommend to use the ROI-based extraction first (`roi_based_extraction.py`), 
+which is way more flexible and can be adapted much better to other institutions slides.
+
+This script is used to extract the meta data from the macro images of the slides without predefined regions of interest (ROI).
+For this, babelfish extract the whole slide-label-text as a "character soup" and then tries to extract the metadata from this soup based on predefined rules.
+
+`char_soup_based_extraction.py` can be configured by editing the file `tools_FileObserving/slides_meta_data_extraction.json`:
+
+WSI-BabelFish will watch the folder `folder_to_watch` (can be set in `slides_meta_data_extraction.json`) and trigger an event if
+new files which match pattern `patterns` have been uploaded to `folder_to_watch`.
+
+WSI-BabelFish will then extract the meta-data of the new imported slide and save it as json at 
+`target_folder/<slide-file>.ndpi.import`. 
+
+After the metadata extraction is done, WSI-BabelFish moves the slide to `target_folder/slide-file.ndpi` if, `only_extract_meta_data` is set to `False` in the config file (`slides_meta_data_extraction.json`).
+
+#### How to adapt char_soup_based_extraction.py to your use case:
+
+Unfortunately, the OCR tools are not perfect and need to be adapted to the specific use case. 
+
+For this, one can edit the `tools_MetadataExtraction/HitchhikersGuide.py` code.
+Moreover, the function `get_slide_meta_data` in `tools_MetadataExtraction/extract_meta_data.py` can be adapted to change how the metadata dictionary should be built.
+
+Implement/adjust the function `is_valid_slide_id` and or `is_valid_case_id` in `tools_MetadataExtraction/extract_meta_data.py` to adjust how the plausibility check should be done on your extracted metadata.
+
 
 ## Contribute
 Contributions are very welcome! Here's how to get involved:
