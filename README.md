@@ -113,25 +113,6 @@ Then install pytesseract into your environment using ``python -m pip install pyt
 
 Feel free to edit this chapter if you have some experience with it!
 
-## How to configure your scheduler to execute WSI-BabelFish:
-
-WSI-BabelFish needs to be executed frequently using a task scheduler.
-For this, one need to set up a scheduled task so that `/path/to/this/repo/roi_based_extraction.py` gets executed each x minute. 
-For this, see the next chapter(s):
-
-### windows task scheduling:
-We had some trouble to make WSI-BabelFish work together with the windows task scheduler. This was our solution:
-
-1. Open the Windows Task Scheduler
-2. Create a new task
-3. Set the action to run a program
-4. In the action-settings, enter `/path/to/this/repo/execute.bat` for "Program/Script" and enter `/path/to/this/repo` for "Start in" so that this will be used as working directory.
-5. Now modify the `execute.bat` accordingly to your environment. 
-
-### linux task scheduling:
-On linux one can use crontab to schedule the execution of `/path/to/this/repo/roi_based_extraction.py`. 
-Feel free to edit this chapter if you have some experience with it!
-
 ## How to configure roi_based_extraction.py
 
 ### 1) Generate a RoiSet.zip file with your wsi files:
@@ -176,7 +157,7 @@ roi_based_extraction.py --config config/roi_config_example.yaml --openslide_dll 
 
 ### 4) Automate the ROI-based extraction:
 
-To automate `roi_based_extraction.py`, simply execute it with a task scheduler as described in the previous chapter(s).
+To automate `roi_based_extraction.py`, simply execute it with a task scheduler as described in chapter "*How to configure your scheduler to execute WSI-BabelFis*h".
 
 ## How to configure char_soup_based_extraction.py
 
@@ -208,6 +189,24 @@ Moreover, the function `get_slide_meta_data` in `tools_MetadataExtraction/extrac
 
 Implement/adjust the function `is_valid_slide_id` and or `is_valid_case_id` in `tools_MetadataExtraction/extract_meta_data.py` to adjust how the plausibility check should be done on your extracted metadata.
 
+## How to configure your scheduler to execute WSI-BabelFish:
+
+WSI-BabelFish needs to be executed frequently using a task scheduler.
+For this, one need to set up a scheduled task so that `/path/to/this/repo/roi_based_extraction.py` gets executed each x minute. 
+For this, see the next chapter(s):
+
+### windows task scheduling:
+We had some trouble to make WSI-BabelFish work together with the windows task scheduler. This was our solution:
+
+1. Open the Windows Task Scheduler
+2. Create a new task
+3. Set the action to run a program
+4. In the action-settings, enter `/path/to/this/repo/execute.bat` for "Program/Script" and enter `/path/to/this/repo` for "Start in" so that this will be used as working directory.
+5. Now modify the `execute.bat` accordingly to your environment. 
+
+### linux task scheduling:
+On linux one can use crontab to schedule the execution of `/path/to/this/repo/roi_based_extraction.py`. 
+Feel free to edit this chapter if you have some experience with it!
 
 ## Contribute
 Contributions are very welcome! Here's how to get involved:
