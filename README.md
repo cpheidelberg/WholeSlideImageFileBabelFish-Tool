@@ -111,7 +111,11 @@ Then install pytesseract into your environment using ``python -m pip install pyt
 
 **On Linux:**
 
-Feel free to edit this chapter if you have some experience with it!
+Ubuntu:
+
+Install tesseract-ocr with apt: `sudo apt-get install tesseract-ocr`
+
+Install pytesseract into your environment using ``python -m pip install pytesseract``
 
 ## How to configure roi_based_extraction.py
 

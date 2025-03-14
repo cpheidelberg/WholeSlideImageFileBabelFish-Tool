@@ -1,11 +1,14 @@
 # General settings:
-folder_to_watch: D:\Research\Slides\medatata_extraction_test # the folder to watch for new wsi files. New imported files will be processed and moved to the target folder, or renamed.
+folder_to_watch: /media/max/WSIPortal/WSI-Label-Testset/CMCP # the folder to watch for new wsi files. New imported files will be processed and moved to the target folder, or renamed.
 target_folder: '' # the folder where the processed files will be moved to (NOT IMPLEMENTED YET!
 wsi_types: ['.ndpi']
 debug_mode: true # if true, more informations will be printed and or logged into the log file (e.g. debug images are stored in folder_to_watch/metadata_debug).
 
-# Where to find the ROI set file for the OCR extraction
+# ROI-Set and macro-img-preprocessing settings:
 ROI_set_file: 'config/roi_set_example.zip' # the file with the ROIs for the OCR (and datamatrix) extraction
+# the commands for the preprocessing of the macro images:
+wsi_macro_img_rotation: 90 # how to rotate the image in degrees, clockwise. Allowed values: [0, 90, 180, 270, -90, -180, None]
+wsi_macro_img_tag: 'macro' # this tag is used to identify the macro images in the wsi files
 
 # renaming and how to store the extracted metadata
 rename_wsi_files: true # if true, the wsi files will be renamed (extracted from the metadata)

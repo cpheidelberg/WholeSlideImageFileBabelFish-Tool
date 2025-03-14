@@ -14,7 +14,7 @@ parser.add_argument('--dmxt_dll', type=str, required=False, default=None, help='
 parser.add_argument('--config', type=str, required=True, help='the .yaml config file (use config/roi_config_example.yaml as template for your configuration!)')
 args = parser.parse_args()
 
-WSI_MACRO_IMG_KEY = 'macro'
+
 
 if hasattr(os, 'add_dll_directory'):  # Windows
     try:
@@ -38,7 +38,7 @@ else:
     from pylibdmtx.pylibdmtx import decode
 class RoiBasedMetaDataExtractor():
 
-    def __init__(self, roi_set_path, config=None):
+    def __init__(self, roi_set_path, config=None, wsi_macro_img_tag='macro', wsi_macro_img_rotation=90):
         '''
         Initialize the ROI-based metadata extractor.
         :param roi_set_path: The path to the ROI set file (.zip, exported roi-set from ImageJ).
@@ -47,6 +47,8 @@ class RoiBasedMetaDataExtractor():
 
         # load roi:
         self.rois = roiread(roi_set_path)
+        self.wsi_macro_img_tag = wsi_macro_img_tag
+        self.wsi_macro_img_rotation = wsi_macro_img_rotation
 
         default_config = {'is_datamatrix': False,
                           'replacement_patterns': [(r'\s+$', '')],
@@ -83,7 +85,7 @@ class RoiBasedMetaDataExtractor():
         # load wsi object with openslide:
         wsi = openslide.OpenSlide(wsi_file_path)
 
-        macro_img = wsi.associated_images[WSI_MACRO_IMG_KEY]
+        macro_img = wsi.associated_images[self.wsi_macro_img_tag]
 
         meta_data = {roi.name: None for roi in self.rois}
 
@@ -112,7 +114,16 @@ class RoiBasedMetaDataExtractor():
             macro_img_array = macro_img_array[:, left:right]
 
             macro_img_array = cv2.cvtColor(macro_img_array, cv2.COLOR_BGR2GRAY)
-            macro_img_array = cv2.rotate(macro_img_array, cv2.ROTATE_90_CLOCKWISE)
+            if self.wsi_macro_img_rotation == 0 or not self.wsi_macro_img_rotation:
+                pass
+            elif self.wsi_macro_img_rotation == 90:
+                macro_img_array = cv2.rotate(macro_img_array, cv2.ROTATE_90_CLOCKWISE)
+            elif self.wsi_macro_img_rotation in [180, -180]:
+                macro_img_array = cv2.rotate(macro_img_array, cv2.ROTATE_180)
+            elif self.wsi_macro_img_rotation in [270, -90]:
+                macro_img_array = cv2.rotate(macro_img_array, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            else:
+                raise ValueError(f"Rotation angle {self.wsi_macro_img_rotation} not supported. Supported angles are 0, 90, 180 and 270.")
 
             if self.config[roi.name]['is_datamatrix']:
                 h, w = macro_img_array.shape[:2]
@@ -206,7 +217,9 @@ def main():
     plausibility_regex_checks = {roi_name: config['extraction_rules'][roi_name]['plausibility_regex_check']
                                  for roi_name in config['extraction_rules']}
 
-    roi_extractor = RoiBasedMetaDataExtractor(config['ROI_set_file'], config=config['extraction_rules'])
+    roi_extractor = RoiBasedMetaDataExtractor(config['ROI_set_file'], config=config['extraction_rules'],
+                                              wsi_macro_img_tag=config['wsi_macro_img_tag'],
+                                              wsi_macro_img_rotation=config['wsi_macro_img_rotation'])
     wsi_files = []
     for file_type in config['wsi_types']:
         wsi_files += [os.path.join(test_folder, f) for f in os.listdir(test_folder) if f.endswith(file_type)]
