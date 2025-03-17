@@ -38,7 +38,8 @@ else:
     from pylibdmtx.pylibdmtx import decode
 class RoiBasedMetaDataExtractor():
 
-    def __init__(self, roi_set_path, config=None, wsi_macro_img_tag='macro', wsi_macro_img_rotation=90):
+    def __init__(self, roi_set_path, config=None, wsi_macro_img_tag='macro', wsi_macro_img_rotation=90,
+                 ROI_set_ref_res=None):
         '''
         Initialize the ROI-based metadata extractor.
         :param roi_set_path: The path to the ROI set file (.zip, exported roi-set from ImageJ).
@@ -49,6 +50,10 @@ class RoiBasedMetaDataExtractor():
         self.rois = roiread(roi_set_path)
         self.wsi_macro_img_tag = wsi_macro_img_tag
         self.wsi_macro_img_rotation = wsi_macro_img_rotation
+        self.roiset_ref_res = ROI_set_ref_res
+        if self.roiset_ref_res:
+            assert len(self.roiset_ref_res) == 2 and type(self.roiset_ref_res[0]) == int, \
+                "Parameter 'ROI_set_ref_res' (in config file) must be a tuple with two values (width, height)."
 
         default_config = {'is_datamatrix': False,
                           'replacement_patterns': [(r'\s+$', '')],
@@ -66,6 +71,12 @@ class RoiBasedMetaDataExtractor():
                         if key not in config[roi.name]:
                             config[roi.name][key] = default_config[key]
             self.config = config
+
+            for roi_name in self.config:
+                if roi_name not in [roi.name for roi in self.rois]:
+                    raise ValueError(f"ROI name '{roi_name}' appears in passed configuration but it appears not in {roi_set_path}!"
+                                     f"\nPlease make sure to configure only existing ROIs in the config file."
+                                     f"\nAvailable ROI names are {[roi.name for roi in self.rois]}.")
 
     def extract_metadata_with_roiset(self, wsi_file_path, debug_mode=False,
                                      pxl_offset=0, ocr_engine="easyocr"
@@ -91,6 +102,9 @@ class RoiBasedMetaDataExtractor():
 
         # todo: maybe use resize loop if ocr fails?: e.g.:
         # img = cv2.resize(img, (size_factor * img.shape[1], size_factor * img.shape[0]))
+
+        if self.roiset_ref_res:
+            macro_img = cv2.resize(np.array(macro_img), (self.roiset_ref_res[0], self.roiset_ref_res[1]))
 
         if debug_mode:
             debug_folder = os.path.dirname(wsi_file_path) + "/metadata_debug"
@@ -127,7 +141,9 @@ class RoiBasedMetaDataExtractor():
 
             if self.config[roi.name]['is_datamatrix']:
                 h, w = macro_img_array.shape[:2]
-                meta_data[roi.name] = decode((macro_img_array.tobytes(), w, h))
+                decoded_matrix = decode((macro_img_array.tobytes(), w, h))
+                if decoded_matrix:
+                    meta_data[roi.name] = decoded_matrix[0].data.decode('UTF-8')
             else:
                 # apply ocr:
                 extracted_text = None
@@ -183,6 +199,9 @@ def regex_check(text, regex_checks: list):
 
     error_list = {}
 
+    if not regex_checks:
+        return "No regex checks provided."
+
     for check in regex_checks:
         if not text:
             error_list[check] = "No text found"
@@ -198,7 +217,7 @@ def main():
 
     #### testing with ROI-config file supported metadata-extraction:
 
-    conf_data_path = "./config/roi_config_example.yaml"
+    conf_data_path = args.config
     # load config from yaml file:
     with open(conf_data_path, 'r') as file:
         config = yaml.safe_load(file)
@@ -214,12 +233,14 @@ def main():
     for k_config in config:
         print(f"  {k_config}: {config[k_config]}")
 
+    roi_extractor = RoiBasedMetaDataExtractor(config['ROI_set_file'], config=config['extraction_rules'],
+                                              wsi_macro_img_tag=config['wsi_macro_img_tag'],
+                                              wsi_macro_img_rotation=config['wsi_macro_img_rotation'],
+                                              ROI_set_ref_res=config['ROI_set_ref_res'])
+
     plausibility_regex_checks = {roi_name: config['extraction_rules'][roi_name]['plausibility_regex_check']
                                  for roi_name in config['extraction_rules']}
 
-    roi_extractor = RoiBasedMetaDataExtractor(config['ROI_set_file'], config=config['extraction_rules'],
-                                              wsi_macro_img_tag=config['wsi_macro_img_tag'],
-                                              wsi_macro_img_rotation=config['wsi_macro_img_rotation'])
     wsi_files = []
     for file_type in config['wsi_types']:
         wsi_files += [os.path.join(test_folder, f) for f in os.listdir(test_folder) if f.endswith(file_type)]

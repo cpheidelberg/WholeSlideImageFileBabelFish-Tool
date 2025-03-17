@@ -52,8 +52,7 @@ def main():
     for k_config in config:
         print(f"  {k_config}: {config[k_config]}")
 
-    plausibility_regex_checks = {roi_name: config['extraction_rules'][roi_name]['plausibility_regex_check']
-                                 for roi_name in config['extraction_rules']}
+
 
     # precompute the renaming pattern as a list:
     renaming_pattern_list = []  # should be a list of shape [meta_key, seperation_symbol, meta_key, seperation_symbol, ..., meta_key]
@@ -82,7 +81,12 @@ def main():
 
     roi_extractor = RoiBasedMetaDataExtractor(config['ROI_set_file'], config=config['extraction_rules'],
                                               wsi_macro_img_tag=config['wsi_macro_img_tag'],
-                                              wsi_macro_img_rotation=config['wsi_macro_img_rotation'])
+                                              wsi_macro_img_rotation=config['wsi_macro_img_rotation'],
+                                              ROI_set_ref_res=config['ROI_set_ref_res'] if 'ROI_set_ref_res' in config else None,)
+
+    plausibility_regex_checks = {roi_name: config['extraction_rules'][roi_name]['plausibility_regex_check']
+                                 for roi_name in config['extraction_rules']}
+
     wsi_files = []
     for file_type in config['wsi_types']:
         wsi_files += [os.path.join(folder_to_watch, f) for f in os.listdir(folder_to_watch) if f.endswith(file_type)]

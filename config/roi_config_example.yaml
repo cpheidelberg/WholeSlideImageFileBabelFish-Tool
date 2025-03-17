@@ -9,6 +9,7 @@ ROI_set_file: 'config/roi_set_example.zip' # the file with the ROIs for the OCR 
 # the commands for the preprocessing of the macro images:
 wsi_macro_img_rotation: 90 # how to rotate the image in degrees, clockwise. Allowed values: [0, 90, 180, 270, -90, -180, None]
 wsi_macro_img_tag: 'macro' # this tag is used to identify the macro images in the wsi files
+ROI_set_ref_res: [1155, 395] # the x-y resolution of the macro-image which has been used to create the RoiSet.zip file
 
 # renaming and how to store the extracted metadata
 rename_wsi_files: true # if true, the wsi files will be renamed (extracted from the metadata)
