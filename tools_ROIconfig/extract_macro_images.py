@@ -38,6 +38,8 @@ def main():
     parser.add_argument('--in_folder', type=str, required=True, help='Input folder containing WSI files')
     parser.add_argument('--file_type', type=str, required=True, help='File type postfix to filter WSI files')
     parser.add_argument('--max_samples', type=str, required=False, default=None, help='File type postfix to filter WSI files')
+    parser.add_argument('--macro_img_tag', type=str, required=False, default='macro',
+                        help='File type postfix to filter WSI files')
 
     args = parser.parse_args()
 
@@ -76,8 +78,8 @@ def main():
             continue
         num_samples_processed = 0
         print(f"Processing folder {in_folder}")
-        out_subfolder = in_folder.split('/')[-1]
-        assert out_subfolder != ''
+        # get the last part of the path of in_folder
+        out_subfolder = os.path.basename(in_folder)
         out_sub_dir = os.path.join(out_folder, out_subfolder)
         if not os.path.exists(out_sub_dir):
             os.makedirs(out_sub_dir)
@@ -93,8 +95,8 @@ def main():
                 wsi = openslide.OpenSlide(wsi_file_path)
             except Exception as e:
                 print(f"Failed to load {wsi_file_path} due to loading error: {e}")
-            macro_img = wsi.associated_images['macro']
-            out_path =  str(out_sub_dir) + '/' + wsi_file_name.replace(file_type, '') + ".png"
+            macro_img = wsi.associated_images[args.macro_img_tag]
+            out_path = str(out_sub_dir) + '/' + wsi_file_name.replace(file_type, '') + ".png"
             macro_img.save(out_path)
             print(f"{wsi_file_path}\t=>\t{out_path}")
 
