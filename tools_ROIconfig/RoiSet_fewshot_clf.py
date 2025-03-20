@@ -4,7 +4,7 @@ import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from torchvision.models import resnet18, resnet34, resnet152
+from torchvision.models import resnet18, resnet34, resnet152, resnet50
 from tqdm import tqdm
 from torchvision.datasets import VisionDataset
 from easyfsl.samplers import TaskSampler
@@ -122,7 +122,7 @@ def main():
     batch_size = 8
     plot_variance = True
     num_epochs = 20  # Number of episodes
-    backbone_name = "resnet152" # one of ["resnet18", "resnet34", "resnet152"]
+    backbone_name = "resnet152" # one of ["resnet18", "resnet34", "resnet50", "resnet152"]
     with_wandb = False
     val_instances_per_class = 10
     lr = 0.001
@@ -133,12 +133,10 @@ def main():
     N_SHOT_VAL = 5
     N_QUERY_VAL = 5
     N_TASKS_TRAIN = 100
-    N_TASKS_VAL = 30
+    N_TASKS_VAL = 1
     fig_dpis = 100
 
     args = parser.parse_args()
-
-    # load a custom image dataset as torchvision.datasets.VisionDataset object
     dataset_dir = args.train_dir
 
     if grayscale_images:
@@ -185,9 +183,9 @@ def main():
             f"\t{class_name}: {len([inst for inst in val_ds.samples if inst[1] == val_ds.class_to_idx[class_name]])}")
     print()
 
-    # create few-shot_cash folder if not exists
-    if not os.path.exists("few-shot_cash"):
-        os.mkdir("few-shot_cash")
+    # create few-shot_cache folder if not exists
+    if not os.path.exists("few-shot_cache"):
+        os.mkdir("few-shot_cache")
 
     # generate a dataframe as dataset and store it as table
     df_dataset = pd.DataFrame(columns=["ID", "diagnosis_id", "diagnosis", "file_path", "set"])
@@ -200,16 +198,15 @@ def main():
     # load a pretrained resnet as model
     if backbone_name == "resnet18":
         resnet = resnet18(pretrained=True)
-        resnet.fc = nn.Flatten()
     elif backbone_name == "resnet34":
         resnet = resnet34(pretrained=True)
-        resnet.fc = nn.Flatten()
     elif backbone_name == "resnet152":
         resnet = resnet152(pretrained=True) # model will be downloaded if not present in environment
-        resnet.fc = nn.Flatten()
+    elif backbone_name == "resnet50":
+        resnet = resnet50(pretrained=True)
     else:
         raise ValueError(f"backbone_name {backbone_name} not supported. Use one of ['resnet18', 'resnet34', 'resnet152']")
-
+    resnet.fc = nn.Flatten()
 
 
     #### render preview of support and query images
@@ -227,7 +224,7 @@ def main():
                 img = Image.open(img_path)
                 plt.imshow(img)
                 plt.axis("off")
-        plt.savefig(f"few-shot_cash/IMG#{dataset_name}.png", dpi=fig_dpis)
+        plt.savefig(f"few-shot_cache/IMG#{dataset_name}.png", dpi=fig_dpis)
 
         # The sampler needs a dataset with a "get_labels" method. Check the code if you have any doubt!
         val_ds.get_labels = lambda: [
@@ -252,7 +249,7 @@ def main():
         ) = next(iter(test_loader))
         plt.clf()
         plot_images(example_support_images, "transformed images", images_per_row=5)
-        plt.savefig(f"few-shot_cash/IMGT#{dataset_name}.png", dpi=fig_dpis)
+        plt.savefig(f"few-shot_cache/IMGT#{dataset_name}.png", dpi=fig_dpis)
 
 
     train_loader = DataLoader(train_ds, batch_size, shuffle=True, num_workers=0)
@@ -269,10 +266,12 @@ def main():
 
     ### predict or load (labeled) backbone-embeddings
     from easyfsl.utils import predict_embeddings
-    embedding_backup_name = "few-shot_cash/embeddings_" + dataset_name + "_" + backbone_name +".pkl"
+    embedding_backup_name = "few-shot_cache/embeddings_" + dataset_name + "_" + backbone_name +".pkl"
     # if not file exists, create it
     if not os.path.exists(embedding_backup_name) or update_embedding:
-        print(f"file {embedding_backup_name} does not exist. Predicting embeddings now. Will store them in {embedding_backup_name}")
+        if not update_embedding:
+            print(f"file {embedding_backup_name} does not exist. "
+                  f"precomputing embeddings now. Will store them in {embedding_backup_name}")
         embeddings_df_train = predict_embeddings(train_loader, resnet.to(device), device=device)
         embeddings_df_train['set'] = "train"
         embeddings_df_val = predict_embeddings(val_loader, resnet.to(device), device=device)
@@ -289,7 +288,7 @@ def main():
         df = df.rename(columns={'class_name': 'label'})
         l_space = PCAAnalysis(df)
 
-        l_space.plot_explained_variance(save_path=f"few-shot_cash/PCA#{dataset_name}_{backbone_name}.png")
+        l_space.plot_explained_variance(save_path=f"few-shot_cache/PCA#{dataset_name}_{backbone_name}.png")
 
     # create a dataset from the embeddings
     embeddings_df_train = embeddings_df[embeddings_df['set'] == 'train'].reset_index()
@@ -345,12 +344,12 @@ def main():
     y_true, y_pred = [], []
     with tqdm(total=len(val_loader), file=sys.stdout) as pbar:
         for i in range(len(embeddings_df_val)):
-            feature = embeddings_df_val.embedding[i]
+            val_features = embeddings_df_val.embedding[i]
 
             '''model.process_support_set(
                 support_set.to(device), support_label.to(device)
             )'''
-            out = model(feature.to(device).unsqueeze(0))
+            out = model(val_features.to(device).unsqueeze(0))
 
             y_pred.append(int(torch.argmax(out).detach().cpu().numpy()))
             y_true.append(int(embeddings_df_val.class_name[i]))
@@ -446,12 +445,12 @@ def main():
     y_true, y_pred = [], []
     with tqdm(total=len(val_loader), file=sys.stdout) as pbar:
         for i in range(len(embeddings_df_val)):
-            feature = embeddings_df_val.embedding[i]
+            val_features = embeddings_df_val.embedding[i]
 
             '''model.process_support_set(
                 support_set.to(device), support_label.to(device)
             )'''
-            out = model(feature.to(device).unsqueeze(0))
+            out = model(val_features.to(device).unsqueeze(0))
 
             y_pred.append(int(torch.argmax(out).detach().cpu().numpy()))
             y_true.append(int(embeddings_df_val.class_name[i]))
@@ -463,7 +462,7 @@ def main():
     print(f"Kappa value after finetuning: {kappa_after_finetuning} (using train-set as support and val as query)")
     print(f"Kappa improvement: +{kappa_after_finetuning - kappa_without_finetuning}")
 
-    # todo: store finetuned Protonet model!!!
+    # todo: store finetuned Protonet model.
 
     # plot confusion matrix
     # clear the current figure
@@ -473,7 +472,7 @@ def main():
     plt.xlabel("Predicted Label")
     plt.ylabel("True Label")
     plt.title("Confusion Matrix (for validation set)")
-    plt.savefig(f"few-shot_cash/CM#{dataset_name}_{backbone_name}.png", dpi=fig_dpis)
+    plt.savefig(f"few-shot_cache/CM#{dataset_name}_{backbone_name}.png", dpi=fig_dpis)
 
 if __name__ == "__main__":
     main()
