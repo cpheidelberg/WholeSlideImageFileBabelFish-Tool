@@ -5,6 +5,8 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import seaborn as sns # todo: add to requirements
 import os, sys
+import pickle
+import torch
 
 class PCAAnalysis:
     def __init__(self, df, n_components=2):
@@ -78,3 +80,44 @@ class PCAAnalysis:
         :return: Explained variance ratio
         """
         return self.explained_variance_ratio
+
+def dump_features(df, save_path):
+
+    features= df['embedding'].tolist()
+    features = torch.stack(features)
+    label = df['class_name'].tolist()
+    if "set" in df.columns:
+        setdata = df['set'].tolist()
+
+    with open(save_path, "wb") as f:
+        if not "set" in df.columns:
+            pickle.dump({"features": features, "label": label}, f)
+        else:
+            pickle.dump({"features": features,
+                         "label": label,
+                         "set": setdata}, f)
+    print(f"features (and label) are saved to {save_path}")
+
+def load_features(save_path):
+
+    with open(save_path, "rb") as f:
+        data = pickle.load(f)
+    print(f"features (and label) loaded from {save_path}")
+
+    # Access the tensor and list
+    features = data["features"]
+    features = features.tolist()
+    features = [torch.tensor(i) for i in features]
+    label= data["label"]
+
+    if "set" in data.keys():
+        setdata = data['set']
+
+    if not "set" in data.keys():
+        df = pd.DataFrame({'class_name': label, 'embedding': features})
+    else:
+        df = pd.DataFrame({'class_name': label,
+                           'embedding': features,
+                           "set": setdata})
+
+    return df

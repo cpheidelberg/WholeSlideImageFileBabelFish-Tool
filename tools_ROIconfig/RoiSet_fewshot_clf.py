@@ -1,21 +1,21 @@
 import os, sys
-
 import matplotlib.pyplot as plt
-import torch
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.models import resnet18, resnet34, resnet152
 from tqdm import tqdm
-from torchvision.datasets import Omniglot, VisionDataset
+from torchvision.datasets import VisionDataset
 from easyfsl.samplers import TaskSampler
-from easyfsl.utils import plot_images, sliding_average
+from easyfsl.utils import plot_images
 import numpy as np
-import cv2
 import pandas as pd
 from sklearn.metrics import cohen_kappa_score, confusion_matrix
 import seaborn as sns
+from few_shot_utils import PCAAnalysis
+from easyfsl.datasets import FeaturesDataset
+from few_shot_utils import dump_features, load_features
 
 # argument parsing:
 import argparse
@@ -112,53 +112,12 @@ def get_default_device():
     else:
         return torch.device('cpu')
 
-import pickle
-def dump_features(df, save_path):
-
-    features= df['embedding'].tolist()
-    features = torch.stack(features)
-    label = df['class_name'].tolist()
-    if "set" in df.columns:
-        setdata = df['set'].tolist()
-
-    with open(save_path, "wb") as f:
-        if not "set" in df.columns:
-            pickle.dump({"features": features, "label": label}, f)
-        else:
-            pickle.dump({"features": features,
-                         "label": label,
-                         "set": setdata}, f)
-    print(f"features (and label) are saved to {save_path}")
-
-def load_features(save_path):
-
-    with open(save_path, "rb") as f:
-        data = pickle.load(f)
-    print(f"features (and label) loaded from {save_path}")
-
-    # Access the tensor and list
-    features = data["features"]
-    features = features.tolist()
-    features = [torch.tensor(i) for i in features]
-    label= data["label"]
-
-    if "set" in data.keys():
-        setdata = data['set']
-
-    if not "set" in data.keys():
-        df = pd.DataFrame({'class_name': label, 'embedding': features})
-    else:
-        df = pd.DataFrame({'class_name': label,
-                           'embedding': features,
-                           "set": setdata})
-
-    return df
 
 def main():
 
     classes_to_include = ["IHC", "SlideMateLaser", "CMCP", "SuperFrost", "DARK"] # "SuperFrost"
-    relative_label_width = 0.3
-    plot_example_images = True
+    relative_label_width = 0.3 # to crop the labels from the macro-images
+    plot_example_macro_images = True
     resize = (395, 1155)
     batch_size = 8
     plot_variance = True
@@ -168,14 +127,14 @@ def main():
     val_instances_per_class = 10
     lr = 0.001
     grayscale_images = False
-    update_embedding = False
+    update_embedding = True
     N_SHOT_TRAIN = 10  # Number of images per class in the support set
     N_QUERY_TRAIN = 10  # Number of images per class in the query set
     N_SHOT_VAL = 5
     N_QUERY_VAL = 5
     N_TASKS_TRAIN = 100
     N_TASKS_VAL = 30
-    fig_dpis = 300
+    fig_dpis = 100
 
     args = parser.parse_args()
 
@@ -254,7 +213,7 @@ def main():
 
 
     #### render preview of support and query images
-    if plot_example_images:
+    if plot_example_macro_images:
 
         # plot a figure which shows 5 example images for each class:
         plt.clf()
@@ -300,7 +259,7 @@ def main():
     val_loader = DataLoader(val_ds, batch_size, num_workers=0)
     for xb, yb in train_loader:
       print(f"xb.shape: {xb.shape}")
-      print(f"min value is {torch.min(xb)} and max value is {torch.max(xb)}")
+      print(f"Normalization-test: min value is {torch.min(xb)} and max value is {torch.max(xb)}")
       print(f"yb.shape: {yb.shape}")
       break
 
@@ -326,7 +285,6 @@ def main():
 
     if plot_variance:
         # plot variance in latent space with PCA:
-        from latentspace import PCAAnalysis
         df = embeddings_df
         df = df.rename(columns={'class_name': 'label'})
         l_space = PCAAnalysis(df)
@@ -334,7 +292,6 @@ def main():
         l_space.plot_explained_variance(save_path=f"few-shot_cash/PCA#{dataset_name}_{backbone_name}.png")
 
     # create a dataset from the embeddings
-    from easyfsl.datasets import FeaturesDataset
     embeddings_df_train = embeddings_df[embeddings_df['set'] == 'train'].reset_index()
     embeddings_df_val = embeddings_df[embeddings_df['set'] == 'val'].reset_index()
     features_dataset_train = FeaturesDataset.from_dataframe(embeddings_df_train)
