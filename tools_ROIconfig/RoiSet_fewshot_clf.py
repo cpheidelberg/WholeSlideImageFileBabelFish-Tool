@@ -122,7 +122,7 @@ def main():
     batch_size = 8
     plot_variance = True
     num_epochs = 20  # Number of episodes
-    backbone_name = "resnet152" # one of ["resnet18", "resnet34", "resnet50", "resnet152"]
+    backbone_name = "resnet_cache/run2/custom_resnet50.pth" # one of ["resnet18", "resnet34", "resnet50", "resnet152", or any .pth file]
     with_wandb = False
     val_instances_per_class = 10
     lr = 0.001
@@ -204,6 +204,11 @@ def main():
         resnet = resnet152(pretrained=True) # model will be downloaded if not present in environment
     elif backbone_name == "resnet50":
         resnet = resnet50(pretrained=True)
+    elif '.pth' in backbone_name:
+        from resnet_pretraining import load_resnet_model
+        print(f"loading resnet model from {backbone_name}")
+        resnet = load_resnet_model(backbone_name, train_ds.class_to_idx)
+        backbone_name = os.path.basename(backbone_name).replace(".pth", "")
     else:
         raise ValueError(f"backbone_name {backbone_name} not supported. Use one of ['resnet18', 'resnet34', 'resnet152']")
     resnet.fc = nn.Flatten()
@@ -349,6 +354,7 @@ def main():
             '''model.process_support_set(
                 support_set.to(device), support_label.to(device)
             )'''
+
             out = model(val_features.to(device).unsqueeze(0))
 
             y_pred.append(int(torch.argmax(out).detach().cpu().numpy()))
@@ -368,8 +374,6 @@ def main():
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
     model = model.to(device)
-
-
 
     ################# training loop #################
     for epoch in range(num_epochs):
@@ -476,4 +480,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
