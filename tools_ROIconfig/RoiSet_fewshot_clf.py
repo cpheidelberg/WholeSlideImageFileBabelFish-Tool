@@ -122,7 +122,7 @@ def main():
     batch_size = 8
     plot_variance = True
     num_epochs = 20  # Number of episodes
-    backbone_name = "resnet_cache/run2/custom_resnet50.pth" # one of ["resnet18", "resnet34", "resnet50", "resnet152", or any .pth file]
+    backbone_name = "resnet_cache/run4/custom_resnet50.pth" # one of ["resnet18", "resnet34", "resnet50", "resnet152", or any .pth file]
     with_wandb = False
     val_instances_per_class = 10
     lr = 0.001

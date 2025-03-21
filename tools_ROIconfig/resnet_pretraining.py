@@ -152,8 +152,8 @@ def main():
     resize = (395, 1155)
     relative_label_width = 0.3
     freeze = False
-    epochs = 5
-    run_name = "run3" + ("_freeze" if freeze else "")
+    epochs = 20
+    run_name = "run4" + ("_freeze" if freeze else "")
     loss_function = nn.CrossEntropyLoss() # nn.NLLLoss()
     activ_function =  nn.Softmax(dim=1) #nn.LogSoftmax(dim=1) or nn.Softmax(dim=1), for crossentropyloss
 
