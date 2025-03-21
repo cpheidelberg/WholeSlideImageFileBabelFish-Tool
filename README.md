@@ -119,6 +119,7 @@ Install pytesseract into your environment using ``python -m pip install pytesser
 
 ## How to configure roi_based_extraction.py
 
+
 ### 1) Generate a RoiSet.zip file with your wsi files:
 WSI Babelfish needs to know which information (staining-letters, block-num, etc...) is located in which region on the label of the slide.
 
@@ -132,11 +133,20 @@ you can use:
 python tools_ROIconfig/extract_macro_images.py 
 --in_folder <path_to_folder_containing_wsis> 
 --file_type <e.g. .ndpi or .svs etc>
---max_samples 10
 ````
-4. Open the macro-image in ImageJ.
-4. Use the `Rectangle`-Tool to draw ROI's. Add each rectangle to a ROI-set using right-mouse click -> `add to ROI-Manager` and name each ROI accordingly to what information is located in this region.
-5. In the ROI manager, select all ROIs and export them as one RoiSet zip file.
+3. If the --in_folder contains different slide-label-types, please sort the extracted macro-images into different folders and name each folder accordingly to the slide-label-type.
+4. For each slide-label-type-folder, execute:
+````
+tools_ROIconfig/calc_mean_macro_imgs.py 
+--in_folder </path/to/slide-label-type-folder>
+
+# will generate a mean-macro-image and store it at 
+# /path/to/slide-label-type-folder/mean_slide-label-type-folder.png
+````
+4. Now, for each generated mean-macro-image, create a RoiSet.zip file as follows:
+5. Open the macro-image in ImageJ.
+6. Use the `Rectangle`-Tool to draw ROI's. Add each rectangle to a ROI-set using right-mouse click -> `add to ROI-Manager` and name each ROI accordingly to what information is located in this region.
+7. In the ROI manager, select all ROIs and export them as one RoiSet zip file.
 
 ### 2) Configure the roi_based_extraction.py script:
 
