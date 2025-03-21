@@ -16,7 +16,7 @@ import pandas as pd
 
 
 def get_data_loaders(data_dir, batch_size=32, test_size=0.2, val_size=0.1, random_seed=42):
-    relative_label_width = 0.32
+    relative_label_width = 0.31
     transform = transforms.Compose([
         transforms.Resize((395, 1155)),
         transforms.Lambda(lambda img: img.crop((0, 0, int(img.width * relative_label_width), img.height))),
@@ -30,7 +30,7 @@ def get_data_loaders(data_dir, batch_size=32, test_size=0.2, val_size=0.1, rando
     indices = np.arange(len(dataset))
 
     # store an example image:
-    fig, axes = plt.subplots(2, 5, figsize=(15, 6))
+    fig, axes = plt.subplots(5, 5, figsize=(15, 15))
     example_indices = [np.random.randint(len(dataset))]
     for i, ax in enumerate(axes.flatten()):
         img, label = dataset[example_indices[-1]]
@@ -40,7 +40,7 @@ def get_data_loaders(data_dir, batch_size=32, test_size=0.2, val_size=0.1, rando
         img = np.clip(img, 0, 1)  # Werte begrenzen
         ax.imshow(img)
         ax.axis('off')
-        random = example_indices[-1]
+        random = np.random.randint(len(dataset))
         while random in example_indices:
             random = np.random.randint(len(dataset))
         example_indices.append(random)
@@ -54,6 +54,14 @@ def get_data_loaders(data_dir, batch_size=32, test_size=0.2, val_size=0.1, rando
     train_targets = targets[train_indices]
     train_indices, val_indices = train_test_split(train_indices, test_size=val_size / (1 - test_size),
                                                   stratify=train_targets, random_state=random_seed)
+
+    # check that there are no intersections between the sets:
+    assert len(set(train_indices) & set(val_indices)) == 0, "Train and validation indices overlap"
+    assert len(set(train_indices) & set(test_indices)) == 0, "Train and test indices overlap"
+    assert len(set(val_indices) & set(test_indices)) == 0, "Validation and test indices overlap"
+    assert len(train_indices) == len(list(set(train_indices))), "Train indices contain duplicates"
+    assert len(val_indices) == len(list(set(val_indices))), "Validation indices contain duplicates"
+    assert len(test_indices) == len(list(set(test_indices))), "Test indices contain duplicates"
 
     train_set = Subset(dataset, train_indices)
     val_set = Subset(dataset, val_indices)
@@ -72,7 +80,7 @@ def get_resnet_model(model_name, num_classes):
     return model
 
 
-def train_model(model, train_loader, val_loader, device, epochs=10, lr=0.001):
+def train_model(model, train_loader, val_loader, device, epochs=5, lr=0.001):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
@@ -145,7 +153,7 @@ def main():
     parser.add_argument('--data_dir', type=str, required=True, help='Path to dataset directory')
     parser.add_argument('--model', type=str, choices=['resnet18', 'resnet34', 'resnet50'], default='resnet18',
                         help='ResNet model variant')
-    parser.add_argument('--epochs', type=int, default=10, help='Number of epochs')
+    parser.add_argument('--epochs', type=int, default=5, help='Number of epochs')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate')
     args = parser.parse_args()

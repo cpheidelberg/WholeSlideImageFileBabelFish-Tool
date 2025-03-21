@@ -122,14 +122,14 @@ def main():
     batch_size = 8
     plot_variance = True
     num_epochs = 20  # Number of episodes
-    backbone_name = "resnet_cache/run4/custom_resnet50.pth" # one of ["resnet18", "resnet34", "resnet50", "resnet152", or any .pth file]
+    backbone_name = 'resnet18' #"resnet_cache/run4/custom_resnet50.pth" # one of ["resnet18", "resnet34", "resnet50", "resnet152", or any .pth file]
     with_wandb = False
     val_instances_per_class = 10
     lr = 0.001
     grayscale_images = False
     update_embedding = True
-    N_SHOT_TRAIN = 10  # Number of images per class in the support set
-    N_QUERY_TRAIN = 10  # Number of images per class in the query set
+    N_SHOT_TRAIN = 40  # Number of images per class in the support set
+    N_QUERY_TRAIN = 40  # Number of images per class in the query set
     N_SHOT_VAL = 5
     N_QUERY_VAL = 5
     N_TASKS_TRAIN = 100
@@ -205,7 +205,7 @@ def main():
     elif backbone_name == "resnet50":
         resnet = resnet50(pretrained=True)
     elif '.pth' in backbone_name:
-        from resnet_pretraining import load_resnet_model
+        from train_resnet_label_classifier import load_resnet_model
         print(f"loading resnet model from {backbone_name}")
         resnet = load_resnet_model(backbone_name, train_ds.class_to_idx)
         backbone_name = os.path.basename(backbone_name).replace(".pth", "")
