@@ -137,8 +137,12 @@ def evaluate_model(model, test_loader, device, class_names):
             y_pred.extend(preds.cpu().numpy())
 
     report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
+    report_str = classification_report(y_true, y_pred, target_names=class_names)
     df = pd.DataFrame(report).transpose()
     df.to_csv('classification_report.csv', index=True)
+    print(report_str)
+    with open('classification_report.txt', 'w') as f:
+        f.write(report_str)
 
     cm = confusion_matrix(y_true, y_pred)
     print("Confusion Matrix:\n", cm)
@@ -146,6 +150,23 @@ def evaluate_model(model, test_loader, device, class_names):
     # store the confusion matrix:
     df_cm = pd.DataFrame(cm, index=class_names, columns=class_names)
     df_cm.to_csv('confusion_matrix.csv')
+
+    # store as image:
+    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.title('Confusion Matrix')
+    plt.colorbar()
+    tick_marks = np.arange(len(class_names))
+    plt.xticks(tick_marks, class_names, rotation=45)
+    plt.yticks(tick_marks, class_names)
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+
+    # Add numbers into the cells
+    for i in range(len(class_names)):
+        for j in range(len(class_names)):
+            plt.text(j, i, format(cm[i, j], 'd'), ha='center', va='center', color='white' if cm[i, j] > cm.max() / 2. else 'black')
+
+    plt.savefig('confusion_matrix.png')
 
 
 def main():
