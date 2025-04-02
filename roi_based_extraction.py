@@ -7,7 +7,7 @@ import filecmp
 import datetime
 
 # script params:
-save_print_to_log_file = True
+save_print_to_log_file = False
 
 # argument parsing:
 import argparse
@@ -44,48 +44,48 @@ def main():
     folder_to_watch = config['folder_to_watch']
     debug_mode = config['debug_mode']
 
-    if config['rename_wsi_files']:
-        if not config['renaming_pattern']:
-            raise ValueError("If you want to rename the WSI files, you have to provide a renaming pattern.")
+    if not config['rename_wsi_files']:
+        raise NotImplementedError("Currently, only renaming of WSI files is supported. Please set 'rename_wsi_files' to True.")
 
     print(f"Using config file: {conf_data_path}, with configuration:")
     for k_config in config:
         print(f"  {k_config}: {config[k_config]}")
+    print()
 
-
-
-    # precompute the renaming pattern as a list:
-    renaming_pattern_list = []  # should be a list of shape [meta_key, seperation_symbol, meta_key, seperation_symbol, ..., meta_key]
-    if config['rename_wsi_files']:
-        assert '{' in config['renaming_pattern'] and '}' in config['renaming_pattern'], 'renaming_pattern must contain at least one pair of curly brackets!'
-        for start_word in config['renaming_pattern'].split('{'):
+    # for each label configuration, create a renaming pattern list and roi_extractor:
+    roi_extractors = {}
+    for label_config_name in config['label_configs'].keys():
+        label_config = config['label_configs'][label_config_name]
+        renaming_pattern_list = []  # should be a list of shape [meta_key, seperation_symbol, meta_key, seperation_symbol, ..., meta_key]
+        if not label_config['renaming_pattern']:
+            raise ValueError("If you want to rename the WSI files, you have to provide a renaming pattern.")
+        assert '{' in label_config['renaming_pattern'] and '}' in label_config['renaming_pattern'], 'renaming_pattern must contain at least one pair of curly brackets!'
+        for start_word in label_config['renaming_pattern'].split('{'):
             if start_word == '':
                 continue
-
             if len(start_word.split('}')) == 1:
                 meta_key = start_word.split('}')[0]
-                assert meta_key in [roi_name for roi_name in config['extraction_rules']], \
+                assert meta_key in [roi_name for roi_name in label_config['extraction_rules']], \
                     f"Meta key '{meta_key}', which appears in the renaming_pattern, not found in extraction rules!"
                 if meta_key != '':
                     renaming_pattern_list += [meta_key]
             elif len(start_word.split('}')) == 2:
                 meta_key = start_word.split('}')[0]
-                assert meta_key in [roi_name for roi_name in config['extraction_rules']], \
+                assert meta_key in [roi_name for roi_name in label_config['extraction_rules']], \
                     f"Meta key '{meta_key}', which appears in the renaming_pattern, not found in extraction rules!"
                 seperation_symbol = start_word.split('}')[1]
                 renaming_pattern_list += [meta_key, seperation_symbol] if seperation_symbol else [meta_key]
             else:
                 raise ValueError(f"Renaming pattern '{config['renaming_pattern']}' is not supported!")
+        config['label_configs'][label_config_name]['renaming_pattern_list'] = renaming_pattern_list
+        #print(f"Renaming pattern list: {renaming_pattern_list}")
 
-        print(f"Renaming pattern list: {renaming_pattern_list}")
 
-    roi_extractor = RoiBasedMetaDataExtractor(config['ROI_set_file'], config=config['extraction_rules'],
-                                              wsi_macro_img_tag=config['wsi_macro_img_tag'],
-                                              wsi_macro_img_rotation=config['wsi_macro_img_rotation'],
-                                              ROI_set_ref_res=config['ROI_set_ref_res'] if 'ROI_set_ref_res' in config else None,)
 
-    plausibility_regex_checks = {roi_name: config['extraction_rules'][roi_name]['plausibility_regex_check']
-                                 for roi_name in config['extraction_rules']}
+        roi_extractors[label_config_name] = RoiBasedMetaDataExtractor(label_config['ROI_set_file'], config=label_config['extraction_rules'],
+                                                  wsi_macro_img_tag=label_config['wsi_macro_img_tag'],
+                                                  wsi_macro_img_rotation=label_config['wsi_macro_img_rotation'],
+                                                  ROI_set_ref_res=label_config['ROI_set_ref_res'] if 'ROI_set_ref_res' in label_config else None,)
 
     wsi_files = []
     for file_type in config['wsi_types']:
@@ -100,79 +100,106 @@ def main():
             fyle_type = os.path.basename(wsi_file).split('.')[-1]
             wsi_name = wsi_name.replace(fyle_type, '')
             if '{' in wsi_name and '}' in wsi_name:
-                if len(wsi_name.split('{')) == len(wsi_name.split('}')) and len(wsi_name.split('{')) == len(config['renaming_pattern'].split('{')):
-                    print(f"Skipping '{wsi_name}' as it is already processed (renaming pattern '{config['renaming_pattern']}' matches with '{wsi_name}').")
+                skip = False
+                for renaming_pattern in [config['label_configs'][config_name]['renaming_pattern'] for config_name in config['label_configs'].keys()]:
+                    if renaming_pattern:
+                        if (len(wsi_name.split('{')) == len(wsi_name.split('}')) and
+                                len(wsi_name.split('{')) == len(renaming_pattern.split('{'))):
+                            skip = True
+                            break
+                if skip:
+                    print(
+                        f"Skipping '{wsi_name}' as it is already processed "
+                        f"(renaming pattern '{renaming_pattern}' matches with '{wsi_name}').")
                     continue
 
-        both_results = {}
-        merged_result = {}
-        for ocr_engine in ["pytesseract", "easyocr"]:
-            both_results[ocr_engine] = roi_extractor.extract_metadata_with_roiset(wsi_file, debug_mode=debug_mode,
-                                                                                  ocr_engine=ocr_engine)
+        # todo: make this smart, for now we randomly try all available label configurations. later, propapility_distr_sorted_label_predictions will be predicted!
+        propapility_distr_sorted_label_predictions = list(config['label_configs'].keys())
 
-        used_ocr_engine = {}
-        errors = {"pytesseract": {}, "easyocr": {}}
-        for roi_name in both_results["pytesseract"]:
+        # for each label_type configuration, try to extract metadata (break if plausible result is found)
+        for label_config_name in propapility_distr_sorted_label_predictions:
 
-            errors["pytesseract"][roi_name] = regex_check(both_results["pytesseract"][roi_name],
+            label_config = config['label_configs'][label_config_name]
+            roi_extractor = roi_extractors[label_config_name]
+
+            plausibility_regex_checks = {
+                roi_name: label_config['extraction_rules'][roi_name]['plausibility_regex_check']
+                for roi_name in label_config['extraction_rules']}
+
+            # extract metadata with pytesseract and easyocr and store in dict both_results:
+            both_results = {}
+            for ocr_engine in ["pytesseract", "easyocr"]:
+                both_results[ocr_engine] = roi_extractor.extract_metadata_with_roiset(wsi_file, debug_mode=debug_mode,
+                                                                                      ocr_engine=ocr_engine)
+
+            # merge results of both ocr engines in a smart way, so that only plausible results are stored in merged_result:
+            merged_result = {}
+            used_ocr_engine = {}
+            errors = {"pytesseract": {}, "easyocr": {}}
+            for roi_name in both_results["pytesseract"]:
+
+                errors["pytesseract"][roi_name] = regex_check(both_results["pytesseract"][roi_name],
+                                                              plausibility_regex_checks[roi_name])
+                errors["easyocr"][roi_name] = regex_check(both_results["easyocr"][roi_name],
                                                           plausibility_regex_checks[roi_name])
-            errors["easyocr"][roi_name] = regex_check(both_results["easyocr"][roi_name],
-                                                      plausibility_regex_checks[roi_name])
 
-            if errors["pytesseract"][roi_name] and errors["easyocr"][roi_name]:
-                merged_result[roi_name] = None
-            elif errors["pytesseract"][roi_name] and not errors["easyocr"][roi_name]:
-                merged_result[roi_name] = both_results["easyocr"][roi_name]
-                used_ocr_engine[roi_name] = "easyocr"
-            elif errors["easyocr"][roi_name] and not errors["pytesseract"][roi_name]:
-                merged_result[roi_name] = both_results["pytesseract"][roi_name]
-                used_ocr_engine[roi_name] = "pytesseract"
-            else:
-                if both_results["pytesseract"][roi_name] == both_results["easyocr"][roi_name]:
-                    merged_result[roi_name] = both_results["pytesseract"][roi_name]
-                    used_ocr_engine[roi_name] = "both"
-                else:
-                    print(f"Warning: OCR engines did not return the same result for {roi_name} in {wsi_file}:")
-                    print(f"  pytesseract: {both_results['pytesseract'][roi_name]}")
-                    print(f"  easyocr: {both_results['easyocr'][roi_name]}")
-                    print("However, both results are plausible. Using pytesseract result.")
+                if errors["pytesseract"][roi_name] and errors["easyocr"][roi_name]:
+                    merged_result[roi_name] = None
+                elif errors["pytesseract"][roi_name] and not errors["easyocr"][roi_name]:
+                    merged_result[roi_name] = both_results["easyocr"][roi_name]
+                    used_ocr_engine[roi_name] = "easyocr"
+                elif errors["easyocr"][roi_name] and not errors["pytesseract"][roi_name]:
                     merged_result[roi_name] = both_results["pytesseract"][roi_name]
                     used_ocr_engine[roi_name] = "pytesseract"
-
-        if any(merged_result[k] is None for k in merged_result):
-            print(f"Plausibility check failed for {wsi_file}:")
-            print(errors)
-            # store the error in a json file:
-
-            with open(f"{wsi_file}.ERROR.json", 'w') as f:
-                json.dump(errors, f, indent=4)
-        else:
-            # rename wsi:
-            if config['rename_wsi_files']:
-                wsi_name = os.path.basename(wsi_file)
-                fyle_type = '.' + wsi_name.split('.')[-1]
-                new_wsi_name = '' #f"{config['renaming_pattern'].format(**merged_result)}{fyle_type}"
-                for i, key in enumerate(renaming_pattern_list):
-                    if key in merged_result:
-                        new_wsi_name += ('{' + merged_result[key] + '}')
-                    else:
-                        new_wsi_name += key
-                new_wsi_name += fyle_type
-
-                if os.path.exists(os.path.join(folder_to_watch, new_wsi_name)):
-                    # is the file with same name is a different file than the current one?
-                    if not filecmp.cmp(wsi_file, os.path.join(folder_to_watch, new_wsi_name)):
-                        print(f"WARNING: File '{new_wsi_name}' already exists as different file! "
-                              f"Skipping and storing error in '{wsi_file}.ERROR.json'...")
-                        with open(f"{wsi_file}.ERROR.json", 'w') as f:
-                            errors["renaming-error"] = f"File  already exists!"
-                            json.dump(errors, f, indent=4)
-                        continue
                 else:
-                    print(f"Renaming '{wsi_name}' to '{new_wsi_name}'")
-                    os.rename(wsi_file, os.path.join(folder_to_watch, new_wsi_name))
+                    if both_results["pytesseract"][roi_name] == both_results["easyocr"][roi_name]:
+                        merged_result[roi_name] = both_results["pytesseract"][roi_name]
+                        used_ocr_engine[roi_name] = "both"
+                    else:
+                        print(f"Warning: OCR engines did not return the same result for {roi_name} in {wsi_file}:")
+                        print(f"  pytesseract: {both_results['pytesseract'][roi_name]}")
+                        print(f"  easyocr: {both_results['easyocr'][roi_name]}")
+                        print("However, both results are plausible. Using pytesseract result.")
+                        merged_result[roi_name] = both_results["pytesseract"][roi_name]
+                        used_ocr_engine[roi_name] = "pytesseract"
 
-            # todo: implement all other metadata export methods (json, csv, etc.)...
+            # store error if any errors, otherwise export the extracted metadata somehow:
+            # (currently only renaming of WSI files is supported)
+            if any(merged_result[k] is None for k in merged_result):
+                print(f"Plausibility check failed for {wsi_file}, when using label_config {label_config_name}:")
+                print(errors)
+                # store the error in a json file:
+                with open(f"{wsi_file}.ERROR.json", 'w') as f:
+                    json.dump(errors, f, indent=4)
+            else:
+                print(f"Plausibility check passed for {wsi_file}, when using label_config {label_config_name}:")
+                # rename wsi:
+                if config['rename_wsi_files']:
+                    wsi_name = os.path.basename(wsi_file)
+                    fyle_type = '.' + wsi_name.split('.')[-1]
+                    new_wsi_name = '' #f"{label_config['renaming_pattern'].format(**merged_result)}{fyle_type}"
+                    for i, key in enumerate(config['label_configs'][label_config_name]['renaming_pattern_list']):
+                        if key in merged_result:
+                            new_wsi_name += ('{' + merged_result[key] + '}')
+                        else:
+                            new_wsi_name += key
+                    new_wsi_name += fyle_type
+
+                    if os.path.exists(os.path.join(folder_to_watch, new_wsi_name)):
+                        # is the file with same name is a different file than the current one?
+                        if not filecmp.cmp(wsi_file, os.path.join(folder_to_watch, new_wsi_name)):
+                            print(f"WARNING: File '{new_wsi_name}' already exists as different file! "
+                                  f"Skipping and storing error in '{wsi_file}.ERROR.json'...")
+                            with open(f"{wsi_file}.ERROR.json", 'w') as f:
+                                errors["renaming-error"] = f"File  already exists!"
+                                json.dump(errors, f, indent=4)
+                    else:
+                        print(f"Renaming '{wsi_name}' to '{new_wsi_name}'")
+                        os.rename(wsi_file, os.path.join(folder_to_watch, new_wsi_name))
+
+                # todo: implement all other metadata export methods (json, csv, etc.)...
+
+                break # as soon as we have a plausible result, we dont need to try other label_configs anymore
 
     exit()
 
