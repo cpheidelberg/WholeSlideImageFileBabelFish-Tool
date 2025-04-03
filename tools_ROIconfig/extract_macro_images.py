@@ -32,12 +32,17 @@ Output:
 
 '''
 
+
+
+
 def main():
     parser = argparse.ArgumentParser(description='Process some arguments.')
-    parser.add_argument('--openslide_dll', type=str, required=False, default=None, help='Path to the OpenSlide DLL directory')
+    parser.add_argument('--openslide_dll', type=str, required=False, default=None,
+                        help='Path to the OpenSlide DLL directory')
     parser.add_argument('--in_folder', type=str, required=True, help='Input folder containing WSI files')
     parser.add_argument('--file_type', type=str, required=True, help='File type postfix to filter WSI files')
-    parser.add_argument('--max_samples', type=str, required=False, default=None, help='File type postfix to filter WSI files')
+    parser.add_argument('--max_samples', type=str, required=False, default=None,
+                        help='File type postfix to filter WSI files')
     parser.add_argument('--macro_img_tag', type=str, required=False, default='macro',
                         help='File type postfix to filter WSI files')
 
@@ -54,6 +59,17 @@ def main():
             import openslide
     else:
         import openslide
+
+    def get_macro_image_from_wsi(wsi_file_path, macro_img_tag):
+        """
+        Get the macro image from a WSI file.
+        :param wsi_file_path: Path to the WSI file.
+        :param macro_img_tag: Tag for the macro image.
+        :return: Macro image.
+        """
+        wsi = openslide.OpenSlide(wsi_file_path)
+        macro_img = wsi.associated_images[macro_img_tag]
+        return macro_img
 
     try:
         in_folder = args.in_folder
@@ -89,13 +105,9 @@ def main():
                 continue
 
             wsi_file_path = os.path.join(in_folder, wsi_file_name)
-
             file_type = '.' + wsi_file_name.split('.')[-1]
-            try:
-                wsi = openslide.OpenSlide(wsi_file_path)
-            except Exception as e:
-                print(f"Failed to load {wsi_file_path} due to loading error: {e}")
-            macro_img = wsi.associated_images[args.macro_img_tag]
+
+            macro_img = get_macro_image_from_wsi(wsi_file_path, args.macro_img_tag)
             out_path = str(out_sub_dir) + '/' + wsi_file_name.replace(file_type, '') + ".png"
             macro_img.save(out_path)
             print(f"{wsi_file_path}\t=>\t{out_path}")

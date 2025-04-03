@@ -2,9 +2,10 @@ import os, sys
 from tqdm import tqdm
 import yaml
 import json
-from tools_MetadataExtraction.RoiBasedMetaDataExtractor import RoiBasedMetaDataExtractor, regex_check
+from tools_MetadataExtraction.RoiBasedMetaDataExtractor import RoiBasedMetaDataExtractor, regex_check, get_macro_image_from_wsi
 import filecmp
-import datetime
+import datetime, time
+from tools_ROIconfig.train_resnet_label_classifier import SlideLabelResnetClassifier
 
 # script params:
 save_print_to_log_file = False
@@ -52,6 +53,21 @@ def main():
         print(f"  {k_config}: {config[k_config]}")
     print()
 
+    # load slide label classifier model:
+    slide_label_classifier = None
+    if 'model_path' in config['slide_label_classifier']:
+        if config['slide_label_classifier']['model_path']:
+            assert os.path.exists(config['slide_label_classifier']['model_path']), f"Model path '{config['slide_label_classifier']['model_path']}' does not exist!"
+            assert 'model_type' in config['slide_label_classifier'], f"Model type must be specified in the config file!"
+
+            try:
+                slide_label_classifier = SlideLabelResnetClassifier(config['slide_label_classifier']['model_path'], config['slide_label_classifier']['model_type'])
+            except Exception as e:
+                raise Exception(f"Error loading slide label classifier model {config['slide_label_classifier']['model_path']}: {e}"
+                      f"\nPlease check the model path and type in the config file or use null "
+                      f"to replace slide-label-classification with brute-force search.")
+
+
     # for each label configuration, create a renaming pattern list and roi_extractor:
     roi_extractors = {}
     for label_config_name in config['label_configs'].keys():
@@ -83,7 +99,7 @@ def main():
 
 
         roi_extractors[label_config_name] = RoiBasedMetaDataExtractor(label_config['ROI_set_file'], config=label_config['extraction_rules'],
-                                                  wsi_macro_img_tag=label_config['wsi_macro_img_tag'],
+                                                  wsi_macro_img_tag=config['wsi_macro_img_tag'],
                                                   wsi_macro_img_rotation=label_config['wsi_macro_img_rotation'],
                                                   ROI_set_ref_res=label_config['ROI_set_ref_res'] if 'ROI_set_ref_res' in label_config else None,)
 
@@ -113,11 +129,30 @@ def main():
                         f"(renaming pattern '{renaming_pattern}' matches with '{wsi_name}').")
                     continue
 
-        # todo: make this smart, for now we randomly try all available label configurations. later, propapility_distr_sorted_label_predictions will be predicted!
-        propapility_distr_sorted_label_predictions = list(config['label_configs'].keys())
+        # apply pretrained slide label classifier to get the most probable label configuration:
+        try:
+            # todo: low-priority: potential performance improvement: Avoid loading the macro-image two times
+            #  (currently we load it once for slide-label-classification and once for the roi extractor)
+            if config['debug_mode']:
+                start_time = time.time()
+                sorted_label_type_names, sorted_probabilities = slide_label_classifier.predict(
+                    get_macro_image_from_wsi(wsi_file, config['wsi_macro_img_tag']))
+                end_time = time.time()
+                print(f"Predicted label type names: {sorted_label_type_names}")
+                print(f"Predicted probabilities: {[round(p,4) for p in sorted_probabilities]}")
+                print(
+                    f"Slide label classifier took {(end_time - start_time) * 1000:.2f} ms to classify the slide '{wsi_file}'")
+            else:
+                sorted_label_type_names, sorted_probabilities = slide_label_classifier.predict(
+                    get_macro_image_from_wsi(wsi_file, config['wsi_macro_img_tag']))
+        except Exception as e:
+            sorted_label_type_names = list(config['label_configs'].keys())
+            if len(sorted_label_type_names) > 1:
+                print(f"Warning: Slide label classifier failed to classify the slide '{wsi_file}' ({e}). "
+                      f"Will randomly try all label configurations in the following order: {sorted_label_type_names}")
 
         # for each label_type configuration, try to extract metadata (break if plausible result is found)
-        for label_config_name in propapility_distr_sorted_label_predictions:
+        for label_config_name in sorted_label_type_names:
 
             label_config = config['label_configs'][label_config_name]
             roi_extractor = roi_extractors[label_config_name]

@@ -15,7 +15,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 import pandas as pd
 
 
-def get_data_loaders(data_dir, batch_size=32, test_size=0.2, val_size=0.1, random_seed=42):
+def macro_image_default_prepro_transform():
     relative_label_width = 0.31
     transform = transforms.Compose([
         transforms.Resize((395, 1155)),
@@ -24,20 +24,25 @@ def get_data_loaders(data_dir, batch_size=32, test_size=0.2, val_size=0.1, rando
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) # use the ImageNet mean and std
     ])
+    return transform
+
+def get_data_loaders(data_dir, batch_size=32, test_size=0.2, val_size=0.1, random_seed=42):
+
+    transform = macro_image_default_prepro_transform()
 
     dataset = datasets.ImageFolder(root=data_dir, transform=transform)
     targets = np.array(dataset.targets)
     indices = np.arange(len(dataset))
 
-    # store an example image:
+    # store an example preview image:
     fig, axes = plt.subplots(5, 5, figsize=(15, 15))
     example_indices = [np.random.randint(len(dataset))]
     for i, ax in enumerate(axes.flatten()):
         img, label = dataset[example_indices[-1]]
         # Tensor umwandeln für Matplotlib
         img = img.numpy().transpose(1, 2, 0)  # [C, H, W] → [H, W, C]
-        img = img * [0.229, 0.224, 0.225] + [0.485, 0.456, 0.406]  # Denormalisierung
-        img = np.clip(img, 0, 1)  # Werte begrenzen
+        img = img * [0.229, 0.224, 0.225] + [0.485, 0.456, 0.406]  # denormalize
+        img = np.clip(img, 0, 1)
         ax.imshow(img)
         ax.axis('off')
         random = np.random.randint(len(dataset))
@@ -80,7 +85,7 @@ def get_resnet_model(model_name, num_classes):
     return model
 
 
-def train_model(model, train_loader, val_loader, device, epochs=5, lr=0.001):
+def train_model(model, train_loader, val_loader, device, class_names, epochs=5, lr=0.001):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
@@ -120,7 +125,11 @@ def train_model(model, train_loader, val_loader, device, epochs=5, lr=0.001):
     plt.savefig('loss_curve.png')
     plt.close()
 
-    torch.save(model.state_dict(), 'trained_model.pth')
+    #torch.save(model.state_dict(), 'trained_model.pth')
+    torch.save({
+        'model_state_dict': model.state_dict(),
+        'class_names': class_names
+    }, 'trained_model.pth')
 
     return model
 
@@ -136,13 +145,13 @@ def evaluate_model(model, test_loader, device, class_names):
             y_true.extend(labels.cpu().numpy())
             y_pred.extend(preds.cpu().numpy())
 
-    report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
-    report_str = classification_report(y_true, y_pred, target_names=class_names)
-    df = pd.DataFrame(report).transpose()
+    clf_report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
+    clf_report_str = classification_report(y_true, y_pred, target_names=class_names)
+    df = pd.DataFrame(clf_report).transpose()
     df.to_csv('classification_report.csv', index=True)
-    print(report_str)
+    print(clf_report_str)
     with open('classification_report.txt', 'w') as f:
-        f.write(report_str)
+        f.write(clf_report_str)
 
     cm = confusion_matrix(y_true, y_pred)
     print("Confusion Matrix:\n", cm)
@@ -168,6 +177,33 @@ def evaluate_model(model, test_loader, device, class_names):
 
     plt.savefig('confusion_matrix.png')
 
+# a class which loads a trained label classifier model and uses it to classify images via prediction:
+class SlideLabelResnetClassifier:
+    def __init__(self, model_path, model_name):
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+        # load classnames and model
+        checkpoint = torch.load(model_path)
+        self.class_names = checkpoint['class_names']
+
+        self.model = get_resnet_model(model_name, len(self.class_names)).to(self.device)
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.model.eval()
+
+        self.transform = macro_image_default_prepro_transform()
+
+    def predict(self, image):
+        if not isinstance(image, torch.Tensor):
+            image = image.convert("RGB")  # Ensure it has 3 channels
+            image = self.transform(image)  # Apply transformation if image is a PIL image
+        image = image.unsqueeze(0).to(self.device)  # Add batch dimension and move to device
+        with torch.no_grad():
+            outputs = self.model(image)
+            probabilities = torch.nn.functional.softmax(outputs, dim=1)[0]  # Compute probabilities
+            sorted_indices = torch.argsort(probabilities, descending=True)  # Sort indices by probability
+            sorted_classes = [self.class_names[i] for i in sorted_indices]  # Get sorted class names
+            sorted_probabilities = [probabilities[i].item() for i in sorted_indices]  # Get sorted probabilities
+        return sorted_classes, sorted_probabilities  # Return both lists
 
 def main():
     parser = argparse.ArgumentParser()
@@ -183,9 +219,14 @@ def main():
 
     train_loader, val_loader, test_loader, class_names = get_data_loaders(args.data_dir, args.batch_size)
     model = get_resnet_model(args.model, len(class_names)).to(device)
-    model = train_model(model, train_loader, val_loader, device, args.epochs, args.lr)
+    model = train_model(model, train_loader, val_loader, device, class_names, args.epochs, args.lr)
     evaluate_model(model, test_loader, device, class_names)
 
+    # test the LabelClassifier class which loads the trained model and uses it to classify slide-macro-images:
+    classifier = SlideLabelResnetClassifier('trained_model.pth', args.model)
+    test_image, _ = test_loader.dataset[0]
+    label = classifier.predict(test_image)
+    print(f"Example prediction of stored model using class 'SlideLabelClassifier': {label}")
 
 if __name__ == '__main__':
     main()

@@ -36,6 +36,18 @@ if hasattr(os, 'add_dll_directory'):  # Windows
 else:
     import openslide
     from pylibdmtx.pylibdmtx import decode
+
+def get_macro_image_from_wsi(wsi_file_path, macro_img_tag):
+    """
+    Get the macro image from a WSI file.
+    :param wsi_file_path: Path to the WSI file.
+    :param macro_img_tag: Tag for the macro image.
+    :return: Macro image.
+    """
+    wsi = openslide.OpenSlide(wsi_file_path)
+    macro_img = wsi.associated_images[macro_img_tag]
+    return macro_img
+
 class RoiBasedMetaDataExtractor():
 
     def __init__(self, roi_set_path, config=None, wsi_macro_img_tag='macro', wsi_macro_img_rotation=90,
@@ -94,10 +106,7 @@ class RoiBasedMetaDataExtractor():
             raise ValueError(f"OCR engine {ocr_engine} not supported! Supported engines are 'easyocr' and 'pytesseract'.")
 
         # load wsi object with openslide:
-        wsi = openslide.OpenSlide(wsi_file_path)
-
-        macro_img = wsi.associated_images[self.wsi_macro_img_tag]
-
+        macro_img = get_macro_image_from_wsi(wsi_file_path, self.wsi_macro_img_tag)
         meta_data = {roi.name: None for roi in self.rois}
 
         # todo: maybe use resize loop if ocr fails?: e.g.:
