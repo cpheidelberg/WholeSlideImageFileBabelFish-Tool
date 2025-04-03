@@ -85,7 +85,7 @@ def get_resnet_model(model_name, num_classes):
     return model
 
 
-def train_model(model, train_loader, val_loader, device, class_names, epochs=5, lr=0.001):
+def train_model(model, train_loader, val_loader, device, class_names, epochs=5, lr=0.001, out_dir=None):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
@@ -116,25 +116,30 @@ def train_model(model, train_loader, val_loader, device, class_names, epochs=5, 
 
         print(f"Epoch {epoch + 1}/{epochs}: Train Loss: {train_losses[-1]:.4f}, Val Loss: {val_losses[-1]:.4f}")
 
-
+    if not out_dir:
+        out_dir = os.getcwd()
     plt.plot(range(1, epochs + 1), train_losses, label='Train Loss')
     plt.plot(range(1, epochs + 1), val_losses, label='Val Loss')
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    plt.savefig('loss_curve.png')
+    plt.savefig(os.path.join(out_dir, 'loss_plot.png'))
     plt.close()
 
-    #torch.save(model.state_dict(), 'trained_model.pth')
+    #torch.save(model.state_dict(), 'labeltype_resnet_classifier.pth')
     torch.save({
         'model_state_dict': model.state_dict(),
         'class_names': class_names
-    }, 'trained_model.pth')
+    }, os.path.join(out_dir, 'labeltype_resnet_classifier.pth'))
 
     return model
 
 
-def evaluate_model(model, test_loader, device, class_names):
+def evaluate_model(model, test_loader, device, class_names, out_dir=None):
+
+    if not out_dir:
+        out_dir = os.getcwd()
+
     model.eval()
     y_true, y_pred = [], []
     with torch.no_grad():
@@ -148,9 +153,9 @@ def evaluate_model(model, test_loader, device, class_names):
     clf_report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
     clf_report_str = classification_report(y_true, y_pred, target_names=class_names)
     df = pd.DataFrame(clf_report).transpose()
-    df.to_csv('classification_report.csv', index=True)
+    df.to_csv(os.path.join(out_dir, 'classification_report.csv') , index=True)
     print(clf_report_str)
-    with open('classification_report.txt', 'w') as f:
+    with open(os.path.join(out_dir, 'classification_report.txt') , 'w') as f:
         f.write(clf_report_str)
 
     cm = confusion_matrix(y_true, y_pred)
@@ -158,7 +163,7 @@ def evaluate_model(model, test_loader, device, class_names):
 
     # store the confusion matrix:
     df_cm = pd.DataFrame(cm, index=class_names, columns=class_names)
-    df_cm.to_csv('confusion_matrix.csv')
+    df_cm.to_csv(os.path.join(out_dir, 'confusion_matrix.csv'))
 
     # store as image:
     plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
@@ -175,7 +180,7 @@ def evaluate_model(model, test_loader, device, class_names):
         for j in range(len(class_names)):
             plt.text(j, i, format(cm[i, j], 'd'), ha='center', va='center', color='white' if cm[i, j] > cm.max() / 2. else 'black')
 
-    plt.savefig('confusion_matrix.png')
+    plt.savefig(os.path.join(out_dir, 'confusion_matrix.png'))
 
 # a class which loads a trained label classifier model and uses it to classify images via prediction:
 class SlideLabelResnetClassifier:
@@ -219,11 +224,11 @@ def main():
 
     train_loader, val_loader, test_loader, class_names = get_data_loaders(args.data_dir, args.batch_size)
     model = get_resnet_model(args.model, len(class_names)).to(device)
-    model = train_model(model, train_loader, val_loader, device, class_names, args.epochs, args.lr)
-    evaluate_model(model, test_loader, device, class_names)
+    model = train_model(model, train_loader, val_loader, device, class_names, args.epochs, args.lr, out_dir=args.data_dir)
+    evaluate_model(model, test_loader, device, class_names, out_dir=args.data_dir)
 
     # test the LabelClassifier class which loads the trained model and uses it to classify slide-macro-images:
-    classifier = SlideLabelResnetClassifier('trained_model.pth', args.model)
+    classifier = SlideLabelResnetClassifier(os.path.join(args.data_dir, 'labeltype_resnet_classifier.pth'), args.model)
     test_image, _ = test_loader.dataset[0]
     label = classifier.predict(test_image)
     print(f"Example prediction of stored model using class 'SlideLabelClassifier': {label}")

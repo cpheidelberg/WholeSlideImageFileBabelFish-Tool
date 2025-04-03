@@ -120,22 +120,60 @@ Install pytesseract into your environment using ``python -m pip install pytesser
 ## How to configure roi_based_extraction.py
 
 
-### 1) Generate a RoiSet.zip file with your wsi files:
+### 1) Generate RoiSet.zip files for each slide-label-type:
 WSI Babelfish needs to know which information (staining-letters, block-num, etc...) is located in which region on the label of the slide.
 
 For this, WSI-BabelFish can load ROI-configuration files. (ROI = Region of Interest).\
 To create a new ROI-configuration file, please follow these steps:
 
-1. Download and install [ImageJ](https://imagej.net/ij/).
-2. Get a macro-image (png or jpg) of one of your slide-files. To extract one or multiple macro-images from a WSI, 
-you can use: 
+
+1. To train a small slide-label classifier, we need to extract the macro images of some sample WSIs from your institution. \
+   For this, we provide a script to extract the macro images from the WSI files. \
+   The script can be found in `tools_ROIconfig/extract_macro_images.py`. \
+   To execute the script, using:
 ````
-python tools_ROIconfig/extract_macro_images.py 
---in_folder <path_to_folder_containing_wsis> 
---file_type <e.g. .ndpi or .svs etc>
+Input folder structure:
+    - /path/to/WSIs
+        - /folderA
+            - slide11.ndpi
+            - slide12.ndpi
+        - /folderB
+            - slide21.ndpi
+            - slides2.ndpi
+            
+Command:
+    python extract_macro_images.py --in_folder /path/to/WSIs --file_type ".ndpi"
+
+Output:
+    - /path/to/WSIs_MACROs
+        - /folderA
+            - slide11.png
+            - slide12.png
+        - /folderB
+            - slide21.png
+            - slide22.png
 ````
-3. If the --in_folder contains different slide-label-types, please sort the extracted macro-images into different folders and name each folder accordingly to the slide-label-type.
-4. For each slide-label-type-folder, execute:
+Please extract around 10 to 100 (the more the better) macro images for each slide-label-type which WSI Babelfish should process. \ 
+2. Now, sort all the extracted macro image png files according to the slide-label-type. \
+   For this, create a folder structure like this (example, png-file-naming is not important, nut slide-label-type folders are!):
+````
+/path/to/WSIs_MACROs
+    - /slide-label-type-1
+        - slide11.png
+        - slide12.png
+        - ...
+    - /slide-label-type-2
+        - slide21.png
+        - slide22.png
+        - ...
+    - /slide-label-type-3
+        - slide31.png
+        - slide32.png
+        - ...
+````
+Where each slide-label-type-folder contains the macro images of one specific slide-label-type. \
+
+3. For each slide-label-type-folder, execute:
 ````
 tools_ROIconfig/calc_mean_macro_imgs.py 
 --in_folder </path/to/slide-label-type-folder>
@@ -143,10 +181,22 @@ tools_ROIconfig/calc_mean_macro_imgs.py
 # will generate a mean-macro-image and store it at 
 # /path/to/slide-label-type-folder/mean_slide-label-type-folder.png
 ````
-4. Now, for each generated mean-macro-image, create a RoiSet.zip file as follows:
-5. Open the macro-image in ImageJ.
-6. Use the `Rectangle`-Tool to draw ROI's. Add each rectangle to a ROI-set using right-mouse click -> `add to ROI-Manager` and name each ROI accordingly to what information is located in this region.
-7. In the ROI manager, select all ROIs and export them as one RoiSet zip file.
+4. Now, for each generated mean-macro-image, create a `RoiSet<label-type-name>.zip` file as follows:
+5. Install and open [ImageJ](https://imagej.net/ij/).
+6. Use the `Rectangle`-Tool to draw multiple **named ROI's** into each mean-macro-image. Add each rectangle to a ROI-set using right-mouse click -> `add to ROI-Manager` and name each ROI accordingly to what information is located in this region.
+7. In the ROI manager, select all ROIs and export them as one `RoiSet<label-type-name>.zip` file.
+
+### 1.1) Train a label-type classifier on your macro-images (optional but recommended):
+If your institution uses different slide-label-types, we recommend to train a small classifier to classify the slide-label-types. \
+For this, we provide a script to train a small resnet-based classifier on the macro images, extracted in the step above. \
+The script can be found in `tools_ROIconfig/train_resnet_label_classifier.py`. \
+The script expects the macro images to be sorted in folders according to their slide-label-type, as described above. \
+To fine-tune a resnet18 model on your macro images, execute:
+````
+tools_ROIconfig/train_resnet_label_classifier.py --data_dir ../data/slide-macro-set/ --model resnet18 --epochs 5  --batch_size 32
+````
+The script will create some training-report files in `../data/slide-macro-set/` and it will store the trained model as `../data/slide-macro-set/labeltype_resnet_classifier.pth` file. \
+This file has to be entered in the config file `roi_config.yaml` under `slide_label_classifier -> model_path`. \
 
 ### 2) Configure the roi_based_extraction.py script:
 
@@ -158,7 +208,7 @@ On execution, roi_based_extraction.py processes all wsi files in the `folder_to_
 A processed wsi file will then be renamed according to the parameter `renaming_pattern` (defined in config yaml file).
 If the file name of a loaded wsi file matches the `renaming_pattern`, the metadata-extraction will be skipped. This behaivior can be turned of by setting `force_meta_extraction` to `True`. 
 
-### 3) Test the configuration:
+### 3) Test the ROI-based WSI Babelfish with your configuration:
 
 To test your configuration yaml-file, set the `folder_to_watch` to a folder with some test-wsi's and execute the script with the following script arguments:
 (tip: Set `debug_mode` to `true` to get more information about the metadata-extraction process.)

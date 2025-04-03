@@ -10,7 +10,6 @@ wsi_macro_img_tag: 'macro' # this tag is used to identify the macro images in th
 slide_label_classifier: # pretrained label-classifier settings:
   model_path: 'tools_ROIconfig/resnet_results/4/trained_model.pth' # the path to the pretrained label classifier model
   model_type: 'resnet18' # the type of the model, e.g. 'resnet18', 'resnet50', ...
-  num_classes: 5 # the number of classes the model will predict.
 
 label_configs:
   CMCP:
