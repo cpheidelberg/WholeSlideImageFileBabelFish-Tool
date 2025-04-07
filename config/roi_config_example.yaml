@@ -1,6 +1,6 @@
 # General settings:
 folder_to_watch: /.../test-WSIs # the folder to watch for new wsi files. New imported files will be processed and moved to the target folder, or renamed.
-target_folder: '' # the folder where the processed files will be moved to (NOT IMPLEMENTED YET!
+target_folder: '' # the folder where the processed files will be moved to (NOT IMPLEMENTED YET!)
 wsi_types: ['.ndpi']
 debug_mode: true # if true, more informations will be printed and or logged into the log file (e.g. debug images are stored in folder_to_watch/metadata_debug).
 # how to store the extracted metadata
@@ -8,7 +8,7 @@ rename_wsi_files: true # if true, the wsi files will be renamed (extracted from 
 force_meta_extraction: false # if true, the metadata will be extracted even if the metadata for a wsi file is already extracted (e.g. according to the renaming pattern)
 wsi_macro_img_tag: 'macro' # this tag is used to identify the macro images in the wsi files
 slide_label_classifier: # pretrained label-classifier settings:
-  model_path: 'tools_ROIconfig/resnet_results/4/trained_model.pth' # the path to the pretrained label classifier model
+  model_path: 'tools_labelTypeClassification/resnet_results/4/trained_model.pth' # the path to the pretrained label classifier model
   model_type: 'resnet18' # the type of the model, e.g. 'resnet18', 'resnet50', ...
 
 label_configs:

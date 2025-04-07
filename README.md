@@ -129,7 +129,7 @@ To create a new ROI-configuration file, please follow these steps:
 
 1. To train a small slide-label classifier, we need to extract the macro images of some sample WSIs from your institution. \
    For this, we provide a script to extract the macro images from the WSI files. \
-   The script can be found in `tools_ROIconfig/extract_macro_images.py`. \
+   The script can be found in `tools_labelTypeClassification/extract_macro_images.py`. \
    To execute the script, using:
 ````
 Input folder structure:
@@ -175,7 +175,7 @@ Where each slide-label-type-folder contains the macro images of one specific sli
 
 3. For each slide-label-type-folder, execute:
 ````
-tools_ROIconfig/calc_mean_macro_imgs.py 
+tools_labelTypeClassification/calc_mean_macro_imgs.py 
 --in_folder </path/to/slide-label-type-folder>
 
 # will generate a mean-macro-image and store it at 
@@ -189,11 +189,11 @@ tools_ROIconfig/calc_mean_macro_imgs.py
 ### 1.1) Train a label-type classifier on your macro-images (optional but recommended):
 If your institution uses different slide-label-types, we recommend to train a small classifier to classify the slide-label-types. \
 For this, we provide a script to train a small resnet-based classifier on the macro images, extracted in the step above. \
-The script can be found in `tools_ROIconfig/train_resnet_label_classifier.py`. \
+The script can be found in `tools_labelTypeClassification/train_resnet_label_classifier.py`. \
 The script expects the macro images to be sorted in folders according to their slide-label-type, as described above. \
 To fine-tune a resnet18 model on your macro images, execute:
 ````
-tools_ROIconfig/train_resnet_label_classifier.py --data_dir ../data/slide-macro-set/ --model resnet18 --epochs 5  --batch_size 32
+tools_labelTypeClassification/train_resnet_label_classifier.py --data_dir ../data/slide-macro-set/ --model resnet18 --epochs 5  --batch_size 32
 ````
 The script will create some training-report files in `../data/slide-macro-set/` and it will store the trained model as `../data/slide-macro-set/labeltype_resnet_classifier.pth` file. \
 This file has to be entered in the config file `roi_config.yaml` under `slide_label_classifier -> model_path`. \

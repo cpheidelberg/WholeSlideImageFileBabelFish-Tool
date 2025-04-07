@@ -5,7 +5,7 @@ import json
 from tools_MetadataExtraction.RoiBasedMetaDataExtractor import RoiBasedMetaDataExtractor, regex_check, get_macro_image_from_wsi
 import filecmp
 import datetime, time
-from tools_ROIconfig.train_resnet_label_classifier import SlideLabelResnetClassifier
+from tools_labelTypeClassification.train_resnet_label_classifier import SlideLabelResnetClassifier
 
 # script params:
 save_print_to_log_file = False
