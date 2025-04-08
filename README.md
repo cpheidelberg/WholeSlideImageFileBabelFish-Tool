@@ -234,15 +234,15 @@ which is way more flexible and can be adapted much better to other institutions 
 This script is used to extract the meta data from the macro images of the slides without predefined regions of interest (ROI).
 For this, babelfish extract the whole slide-label-text as a "character soup" and then tries to extract the metadata from this soup based on predefined rules.
 
-`char_soup_based_extraction.py` can be configured by editing the file `tools_FileObserving/slides_meta_data_extraction.json`:
+`char_soup_based_extraction.py` can be configured by editing the file `config/char_soup_conf.yaml`:
 
-WSI-BabelFish will watch the folder `folder_to_watch` (can be set in `slides_meta_data_extraction.json`) and trigger an event if
+WSI-BabelFish will watch the folder `folder_to_watch` (can be set in `char_soup_conf.yaml`) and trigger an event if
 new files which match pattern `patterns` have been uploaded to `folder_to_watch`.
 
 WSI-BabelFish will then extract the meta-data of the new imported slide and save it as json at 
 `target_folder/<slide-file>.ndpi.import`. 
 
-After the metadata extraction is done, WSI-BabelFish moves the slide to `target_folder/slide-file.ndpi` if, `only_extract_meta_data` is set to `False` in the config file (`slides_meta_data_extraction.json`).
+After the metadata extraction is done, WSI-BabelFish moves the slide to `target_folder/slide-file.ndpi` if, `only_extract_meta_data` is set to `False` in the config file (`char_soup_conf.yaml`).
 
 #### How to adapt char_soup_based_extraction.py to your use case:
 
@@ -256,7 +256,7 @@ Implement/adjust the function `is_valid_slide_id` and or `is_valid_case_id` in `
 ## How to configure your scheduler to execute WSI-BabelFish:
 
 WSI-BabelFish needs to be executed frequently using a task scheduler.
-For this, one need to set up a scheduled task so that `/path/to/this/repo/roi_based_extraction.py` gets executed each x minute. 
+For this, one need to set up a scheduled task so that `/path/to/this/repo/roi_based_extraction.py` or `/path/to/this/repo/char_soup_based_extraction.py` gets executed each x minute. 
 For this, see the next chapter(s):
 
 ### windows task scheduling:
@@ -269,7 +269,7 @@ We had some trouble to make WSI-BabelFish work together with the windows task sc
 5. Now modify the `execute.bat` accordingly to your environment. 
 
 ### linux task scheduling:
-On linux one can use crontab to schedule the execution of `/path/to/this/repo/roi_based_extraction.py`. 
+On linux one can use crontab to schedule the execution of `/path/to/this/repo/roi_based_extraction.py` or `/path/to/this/repo/char_soup_based_extraction.py`. 
 Feel free to edit this chapter if you have some experience with it!
 
 ## Contribute

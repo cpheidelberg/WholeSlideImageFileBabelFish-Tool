@@ -12,7 +12,7 @@ import yaml
 import json
 
 ### script params: ###
-conf_data_path= './tools_FileObserving/slides_meta_data_extraction_test.yaml'
+conf_data_path= './config/char_soup_conf.yaml'
 schedule_time = 300 # seconds. can be very slow frequence. The event handler will allways be triggered, even during sleep
 # load config from yaml file:
 with open(conf_data_path, 'r') as file:
@@ -21,11 +21,6 @@ out_base_path = config["target_folder"]
 log_folder = ".logs"
 tables_folder = "tables"
 save_print_to_log_file = True
-
-# store config as yaml:
-with open(f"./tools_FileObserving/slides_meta_data_extraction_test.yaml", 'w') as file:
-    yaml.dump(config, file)
-exit()
 
 if not os.path.exists(config["folder_to_watch"] + f"/{log_folder}"):
     os.makedirs(config["folder_to_watch"] + f"/{log_folder}")
